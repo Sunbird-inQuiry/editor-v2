@@ -31,7 +31,7 @@
   white-space: nowrap;
 
   // Shape — matches .ce-btn
-  border-radius: 13px;
+  border-radius: var(--sbx-radius-xl);
   border: 1px solid transparent;
 
   // Transition

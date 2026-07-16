@@ -313,11 +313,19 @@ const OutlineTree: React.FC<OutlineTreeProps> = ({ onCollapse }) => {
   }, [addNode, validateAndSave]);
 
   const handleAddQuestion = useCallback(async (parentId: string) => {
+    // save() swaps an unsaved section's temp- id for the real backend id via
+    // replaceNodeId, which keeps selectedNodeId in sync — but ONLY for
+    // whichever node was actually selected. Only re-resolve from it when
+    // parentId IS that selected node (the section itself was selected);
+    // blindly substituting selectedNodeId here previously broke the case
+    // where a question was selected (parentId correctly resolved to the
+    // question's parent section, but selectedNodeId is the question, so
+    // this silently swapped in the question's own id as the new parent).
+    const wasSelectedNode = useTreeStore.getState().selectedNodeId === parentId;
     if (!(await validateAndSave())) return;
-    // save() swaps any unsaved section's temp- id for the real backend id via
-    // replaceNodeId, which keeps selectedNodeId in sync — re-resolve the
-    // parent from it so we don't open the modal against a now-stale temp id.
-    const finalParentId = useTreeStore.getState().selectedNodeId ?? parentId;
+    const finalParentId = wasSelectedNode
+      ? (useTreeStore.getState().selectedNodeId ?? parentId)
+      : parentId;
     openModal('questionTypeSelector', { parentId: finalParentId });
   }, [openModal, validateAndSave]);
 
@@ -338,14 +346,11 @@ const OutlineTree: React.FC<OutlineTreeProps> = ({ onCollapse }) => {
   const selectedKind = selectedNode ? detectNodeKind(selectedNode) : null;
   const addSectionDisabled = selectedKind === 'section' || selectedKind === 'question';
 
-  // Resolve parent for "Add Question" — only a selected section, or a
-  // selected question's parent section, is a valid parent; never fall back
-  // to rootId, or a question would be added directly under the questionset.
-  const questionParentId = selectedKind === 'section'
-    ? selectedNodeId
-    : selectedKind === 'question'
-      ? selectedNode?.parent ?? null
-      : null;
+  // Resolve parent for "Add Question" — only a selected section is a valid
+  // parent; never fall back to rootId (a question would be added directly
+  // under the questionset) and never to a selected question's own parent
+  // section (disabled instead, matching "Add Section"'s behavior).
+  const questionParentId = selectedKind === 'section' ? selectedNodeId : null;
   const addQuestionDisabled = !questionParentId;
 
   return (

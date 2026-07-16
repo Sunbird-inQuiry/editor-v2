@@ -68,7 +68,7 @@
   font-weight: 700;
   flex-shrink: 0;
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius: var(--sbx-radius-full);
   background: var(--sbx-color-surface-muted, #F1F3F7);
   color: var(--sbx-color-text-tertiary, #6B7280);
   border: 1px solid var(--sbx-color-border-default, #DDE1EA);
@@ -194,7 +194,7 @@
   line-height: 1;
   color: var(--sbx-amber-600, #D97706);
   padding: 0 2px;
-  border-radius: 4px;
+  border-radius: var(--sbx-radius-sm);
   transition: color 0.12s, background 0.12s;
   align-self: flex-start;
 
@@ -231,7 +231,7 @@
 
 .sbModal {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--sbx-radius-xl);
   box-shadow: var(--sbx-shadow-3, 0 8px 32px rgba(0, 0, 0, 0.18));
   width: 480px;
   max-width: calc(100vw - 32px);
@@ -267,7 +267,7 @@
   line-height: 1;
   color: var(--sbx-gray-400, #9CA3AF);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--sbx-radius-sm);
   transition: color 0.12s, background 0.12s;
 
   &:hover {

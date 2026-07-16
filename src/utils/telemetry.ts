@@ -89,8 +89,17 @@ function dispatch(eid: string, edata: Record<string, unknown>): void {
   const method = eid.toLowerCase();
   const ek = window.EkTelemetry;
   if (ek && typeof ek[method] === 'function') {
-    ek[method]!(buildEvent(eid, edata));
-    return;
+    // window.EkTelemetry is a page-wide shared telemetry instance another
+    // widget on the page may have already initialised (the underlying SDK's
+    // own convention — see CsTelemetryModule in the old editor). Its methods
+    // are built for THAT widget's event shape, not necessarily ours — e.g. a
+    // video player's handler expecting a duration field a questionset event
+    // doesn't have. Telemetry must never break the editor, so fall back to
+    // the internal batcher if the shared instance can't handle this event.
+    try {
+      ek[method]!(buildEvent(eid, edata));
+      return;
+    } catch { /* fall through to internal batcher */ }
   }
   buffer.push(buildEvent(eid, edata));
   if (buffer.length >= BATCH_SIZE) flush();

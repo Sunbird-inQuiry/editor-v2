@@ -125,23 +125,28 @@
   // ---------------------------------------------------------------------------
   // Border Radius
   // ---------------------------------------------------------------------------
+  // Falls back to the value shown when standalone (no host template active).
+  // --r-* / --sunbird-shadow-* are the portal's own tokens, swapped in
+  // template-overrides.css based on <html data-template="classic|modern">.
   --sbx-radius-none:   0px;
-  --sbx-radius-xs:     2px;
-  --sbx-radius-sm:     4px;
-  --sbx-radius-md:     6px;
-  --sbx-radius-lg:     8px;
-  --sbx-radius-xl:    12px;
-  --sbx-radius-2xl:   16px;
-  --sbx-radius-3xl:   24px;
-  --sbx-radius-full: 9999px;
+  --sbx-radius-xs:     var(--r-xxs, 2px);
+  --sbx-radius-sm:     var(--r-xs,  4px);
+  --sbx-radius-md:     var(--r-sm,  6px);
+  --sbx-radius-lg:     var(--r-md,  8px);
+  --sbx-radius-xl:     var(--r-lg, 12px);
+  --sbx-radius-2xl:    var(--r-xl, 16px);
+  --sbx-radius-3xl:    var(--r-xl, 24px);
+  --sbx-radius-full:   var(--r-pill, 9999px);
 
   // ---------------------------------------------------------------------------
   // Shadows
   // ---------------------------------------------------------------------------
-  --sbx-shadow-xs:  0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --sbx-shadow-sm:  0 1px 3px 0 rgba(0, 0, 0, 0.10), 0 1px 2px -1px rgba(0, 0, 0, 0.10);
-  --sbx-shadow-md:  0 4px 6px -1px rgba(0, 0, 0, 0.10), 0 2px 4px -2px rgba(0, 0, 0, 0.10);
-  --sbx-shadow-lg:  0 10px 15px -3px rgba(0, 0, 0, 0.10), 0 4px 6px -4px rgba(0, 0, 0, 0.10);
+  // The portal only varies 3 elevation levels (sm/md/lg) by template; xl/2xl/
+  // inner/focus have no portal equivalent and stay fixed.
+  --sbx-shadow-xs:  var(--sunbird-shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+  --sbx-shadow-sm:  var(--sunbird-shadow-sm, 0 1px 3px 0 rgba(0, 0, 0, 0.10), 0 1px 2px -1px rgba(0, 0, 0, 0.10));
+  --sbx-shadow-md:  var(--sunbird-shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.10), 0 2px 4px -2px rgba(0, 0, 0, 0.10));
+  --sbx-shadow-lg:  var(--sunbird-shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.10), 0 4px 6px -4px rgba(0, 0, 0, 0.10));
   --sbx-shadow-xl:  0 20px 25px -5px rgba(0, 0, 0, 0.10), 0 8px 10px -6px rgba(0, 0, 0, 0.10);
   --sbx-shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   --sbx-shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
@@ -150,7 +155,10 @@
   // ---------------------------------------------------------------------------
   // Typography — Font Family
   // ---------------------------------------------------------------------------
-  --sbx-font-sans:  'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system,
+  // Rubik matches the Sunbird Spark portal's own default (--app-font-family).
+  // portal-bridge.scss overrides this with var(--app-font-family, 'Rubik', ...)
+  // when embedded — kept in sync here so the standalone default agrees.
+  --sbx-font-sans:  'Rubik', ui-sans-serif, system-ui, -apple-system,
                     BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
                     Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji',
                     'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
