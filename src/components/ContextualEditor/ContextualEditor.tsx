@@ -8,7 +8,7 @@ import { useTreeStore } from '../../store/tree.store';
 import { useQuestionStore } from '../../store/question.store';
 import { useUiStore } from '../../store/ui.store';
 import { isEditingAllowed } from '../../utils/context';
-import { telemetryImpression } from '../../utils/telemetry';
+import { telemetryImpression, setTelemetryPageId } from '../../utils/telemetry';
 import { useFramework } from '../../hooks/useFramework';
 import { useQuestionRead } from '../../hooks/useQuestionRead';
 import { useLabels } from '../../hooks/useLabels';
@@ -102,8 +102,18 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
   // Lock hierarchy + topbar while the inline question editor is open.
   useEffect(() => {
     setQuestionEditorOpen(isCurrentNodeQuestion && inlineEditorOpen);
-    if (isCurrentNodeQuestion && inlineEditorOpen) telemetryImpression('question_editor');
-    return () => setQuestionEditorOpen(false);
+    if (isCurrentNodeQuestion && inlineEditorOpen) {
+      // Old editor parity: the ambient pageid travels with the view, so a
+      // later INTERACT (e.g. SplitEditorShell's toolbar) fired while this
+      // view is open reports the right pageid too, not just this one
+      // IMPRESSION call.
+      setTelemetryPageId('question_editor');
+      telemetryImpression('question_editor');
+    }
+    return () => {
+      setQuestionEditorOpen(false);
+      if (isCurrentNodeQuestion && inlineEditorOpen) setTelemetryPageId('questionset_editor');
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCurrentNodeQuestion, inlineEditorOpen]);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);

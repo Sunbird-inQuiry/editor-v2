@@ -60,7 +60,7 @@ export function useToolbarActions(save: () => Promise<boolean | void>) {
         console.error(`[useToolbarActions] ${action} failed`, err);
         const verb = action === 'sendForReview' ? 'send for review' : action === 'reject' ? 'reject' : 'publish';
         const errorKey = action === 'sendForReview' ? 'messages.error.002' : action === 'reject' ? 'messages.error.003' : 'messages.error.004';
-        notifyError(apiErrorMessage(err, label(errorKey, `Failed to ${verb}. Please try again.`)));
+        notifyError(apiErrorMessage(err, label(errorKey, `Failed to ${verb}. Please try again.`)), err);
         return false;
       } finally {
         setButtonLoader('saveContent', false);

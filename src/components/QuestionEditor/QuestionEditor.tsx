@@ -15,6 +15,7 @@ import { lazy, Suspense } from 'react';
 import { useTreeStore } from '../../store/tree.store';
 import { getContentId } from '../../utils/context';
 import { htmlToText } from '../../utils/html';
+import { telemetryInteract } from '../../utils/telemetry';
 
 const QumlPlayer = lazy(() => import('../QumlPlayer/QumlPlayer'));
 import { createPortal } from 'react-dom';
@@ -178,7 +179,13 @@ function SolutionBlock() {
           border: '1.5px solid var(--sb-border)', borderRadius: 999, padding: '3px 10px',
           color: 'var(--sb-text-muted)', background: '#fff',
         }}>{L('ui.optional', 'Optional')}</span>
-        <button type="button" onClick={clearSolution} title={L('ui.remove', 'Remove')}
+        <button
+          type="button"
+          onClick={() => {
+            clearSolution();
+            telemetryInteract('delete_solution', { subtype: 'cancel', extra: { solution_type: kind } });
+          }}
+          title={L('ui.remove', 'Remove')}
           style={{ marginInlineStart: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--sb-text-faint)', display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8 }}>
           <Icon name="x" size={18} />
         </button>
@@ -193,7 +200,12 @@ function SolutionBlock() {
         ] as const).map(([k, label, icon]) => {
           const active = kind === k;
           return (
-            <button key={k} type="button" onClick={() => { if (!active) setSolutionType(k); }}
+            <button key={k} type="button" onClick={() => {
+              if (!active) {
+                setSolutionType(k);
+                telemetryInteract('solution_type', { subtype: 'single_select', extra: { solution_type: k } });
+              }
+            }}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 padding: '10px 18px', borderRadius: 12, fontFamily: 'inherit',

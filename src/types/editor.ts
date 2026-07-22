@@ -52,6 +52,9 @@ export interface IContext {
   /** Telemetry host/endpoint, as in the old contract. */
   host?: string;
   endpoint?: string;
+  /** Telemetry gateway URL prefix (real telemetry-sdk default: '/action').
+   *  Distinct from IConfig.apiSlug, which prefixes regular API calls. */
+  apislug?: string;
   timeDiff?: number;
   defaultLicense?: string;
   /** Allows reviewer edits in orgreview/sourcingreview (old contract). */

@@ -238,7 +238,7 @@ export function useSaveHierarchy() {
       return true;
     } catch (e) {
       console.error('[useSaveHierarchy] save failed:', e);
-      notifyError(apiErrorMessage(e, label('messages.error.001', 'Failed to save. Please try again.')));
+      notifyError(apiErrorMessage(e, label('messages.error.001', 'Failed to save. Please try again.')), e);
       // nodesModified/hierarchy are rejected as a single transaction — none
       // of the pending nodes since the last successful save actually exist
       // on the backend. Discard them instead of leaving them in the tree

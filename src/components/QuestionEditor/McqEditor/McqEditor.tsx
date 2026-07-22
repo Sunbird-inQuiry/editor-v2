@@ -3,6 +3,7 @@ import { Icon } from '../../shared/Icon';
 import ContentEditable from '../../shared/ContentEditable';
 import { useQuestionStore } from '../../../store/question.store';
 import { useLabels } from '../../../hooks/useLabels';
+import { telemetryInteract } from '../../../utils/telemetry';
 
 interface McqEditorProps { readOnly?: boolean; }
 
@@ -12,12 +13,20 @@ export default function McqEditor({ readOnly = false }: McqEditorProps) {
   const L = useLabels();
   const nextId = useRef(Date.now());
 
-  const addOption = () =>
+  const addOption = () => {
     setOptions([...options, { id: `opt-${nextId.current++}`, body: '', isCorrect: false }]);
-  const removeOption = (id: string) =>
+    telemetryInteract('add_option', { subtype: 'submit' });
+  };
+  const removeOption = (id: string) => {
     setOptions(options.filter(o => o.id !== id));
-  const markCorrect = (id: string) =>
+    telemetryInteract('delete_option', { subtype: 'submit' });
+  };
+  const markCorrect = (id: string) => {
+    // Old editor parity: extra carries the option's index, not its id.
+    const index = options.findIndex(o => o.id === id);
     setOptions(options.map(o => ({ ...o, isCorrect: o.id === id })));
+    telemetryInteract('mark_as_right_anwser', { extra: { answer: String(index) } });
+  };
   const updateBody = (id: string, body: string) =>
     setOptions(options.map(o => o.id === id ? { ...o, body } : o));
 

@@ -48,7 +48,7 @@ export function useQuestionRead() {
   // Read failed — surface the server error and fall back to the root node.
   useEffect(() => {
     if (!query.error || !enabled) return;
-    notifyError(apiErrorMessage(query.error, label('messages.error.001', 'Failed to load the question.')));
+    notifyError(apiErrorMessage(query.error, label('messages.error.001', 'Failed to load the question.')), query.error);
     const rootId = useTreeStore.getState().treeData[0]?.id;
     if (rootId) useTreeStore.getState().selectNode(rootId);
   }, [query.error, enabled]);

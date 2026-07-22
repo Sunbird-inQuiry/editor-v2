@@ -47,15 +47,28 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
   }, [isDirty]);
 
   const handleToolbarEvent = useCallback(
-    async (event: { action: ToolbarAction; data?: unknown }) => {
-      const { action, data } = event;
+    async (event: {
+      action: ToolbarAction;
+      data?: unknown;
+      // Internal-only — callers that need a richer old-editor id/subtype/extra
+      // (distinct from the raw action name) pass it here instead of calling
+      // telemetryInteract themselves, so there is exactly one INTERACT per
+      // click, never two. NOT part of the host-facing event contract below.
+      telemetry?: { id: string; subtype?: string; extra?: Record<string, unknown> };
+    }) => {
+      const { action, data, telemetry } = event;
       // 'back' with unsaved changes is NOT forwarded yet — the host would
       // navigate away before the prompt shows; it's emitted once the prompt
-      // resolves (save/discard handlers below).
-      if (!(action === 'back' && isDirty)) events.onToolbarEvent?.(event);
+      // resolves (save/discard handlers below). telemetry is stripped —
+      // internal plumbing, not part of the public {action, data} contract.
+      if (!(action === 'back' && isDirty)) events.onToolbarEvent?.({ action, data });
       // Old editor logs an INTERACT per toolbar action.
       if (!['onFormValueChange', 'onFormStatusChange'].includes(action)) {
-        telemetryInteract(action);
+        if (telemetry) {
+          telemetryInteract(telemetry.id, { subtype: telemetry.subtype, extra: telemetry.extra });
+        } else {
+          telemetryInteract(action);
+        }
       }
 
       switch (action) {

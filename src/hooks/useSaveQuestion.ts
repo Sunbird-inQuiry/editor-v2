@@ -585,7 +585,7 @@ export function useSaveQuestion() {
       }
     } catch (e) {
       console.error('[useSaveQuestion] save failed:', e);
-      notifyError(apiErrorMessage(e, label('messages.error.001', 'Failed to save question. Please try again.')));
+      notifyError(apiErrorMessage(e, label('messages.error.001', 'Failed to save question. Please try again.')), e);
       return false;
     } finally {
       setIsSaving(false);

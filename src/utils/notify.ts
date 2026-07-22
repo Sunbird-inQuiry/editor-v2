@@ -36,14 +36,30 @@ export function notifySuccess(message: string): void {
   });
 }
 
-export function notifyError(message: string): void {
+/**
+ * `error` is the raw error/response that produced `message` (an axios error
+ * from `src/api/client.ts`, when there is one) — threaded through to
+ * telemetry's ERROR `stacktrace` so silent API failures carry real diagnostic
+ * detail (old editor parity: `apiErrorHandling`'s `{response, request}`).
+ * Optional: some call sites have no underlying error (e.g. a client-side
+ * validation notice).
+ */
+export function notifyError(message: string, error?: unknown): void {
   toast.error(message, {
     style: baseStyle,
     duration: 5000,
     icon: statusIcon('var(--sb-red, #dc2626)', '✕'),
   });
   // Old editor logs an ERROR telemetry event for surfaced failures.
-  void import('./telemetry').then(({ telemetryError }) => telemetryError(message));
+  const detail =
+    error && typeof error === 'object'
+      ? {
+          status: (error as { response?: { status?: number } }).response?.status,
+          data: (error as { response?: { data?: unknown } }).response?.data,
+          url: (error as { config?: { url?: string } }).config?.url,
+        }
+      : undefined;
+  void import('./telemetry').then(({ telemetryError }) => telemetryError(message, undefined, detail));
 }
 
 /** Prefer the server's errmsg (surfaced by the api client) over a generic fallback. */
