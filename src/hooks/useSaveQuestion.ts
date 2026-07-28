@@ -1,13 +1,25 @@
 /**
- * useSaveQuestion — creates/updates questions via hierarchy update,
- * matching the old Angular editor exactly.
+ * useSaveQuestion — creates/updates questions as standalone objects
+ * (visibility: "Default"), decoupled from the questionset hierarchy update
+ * (see plan.md). Legacy visibility:"Parent" questions (created before this
+ * flow existed) still go through hierarchy update unchanged.
  *
- * New questions:
- *  1. Generate a proper UUID (replaces temp- node)
- *  2. Build full metadata in old-editor format
- *  3. Store in tree node → saveHierarchy() creates it
+ * New questions ("Create Question" — always standalone, never attached):
+ *  1. Build full metadata in old-editor format, force visibility: "Default"
+ *  2. POST question/v2/create → real do_ id
+ *  3. POST question/v2/publish — Draft → Live immediately (old AssessmentItem
+ *     items were always usable right away; otherwise the library search,
+ *     which only surfaces status:"Live", wouldn't show it)
+ *  4. Drop the scratch temp- tree node — no questionset/v2/add, no
+ *     hierarchy update. Attaching to a section is a separate, explicit
+ *     action from the Library sidebar.
  *
- * Existing questions: PATCH /question/v2/update/{id}
+ * Existing questions:
+ *  - visibility "Default"  → PATCH question/v2/update/:id, then
+ *     POST question/v2/publish (an edit to a Live question lands on a
+ *     Draft/image copy — republishing immediately keeps the edit visible
+ *     instead of silently sitting unpublished)
+ *  - visibility "Parent"   → PATCH questionset/v2/hierarchy/update (unchanged)
  */
 import { useCallback } from 'react';
 import { notifySuccess, notifyError, apiErrorMessage } from '../utils/notify';
@@ -15,13 +27,22 @@ import { label } from '../utils/labels';
 import { useQuestionStore } from '../store/question.store';
 import { useEditorStore } from '../store/editor.store';
 import { useTreeStore } from '../store/tree.store';
-// updateQuestion (direct PATCH) no longer used — old editor creates/updates
-// via hierarchy update for consistent full-metadata delivery.
+import { createQuestion, updateQuestion, readQuestion, publishQuestion } from '../api/question';
 import { useSaveHierarchy } from './useSaveHierarchy';
+import { refreshLibrary } from './useLibrary';
 import { getUserId } from '../utils/context';
 import { applyContentI18n } from '../utils/i18nSerialize';
 import { resolveQuestionType } from '../registry';
 import { htmlToText } from '../utils/html';
+
+// VersionKeyValidator.scala throws this exact message (ClientException,
+// ResponseCode.CLIENT_ERROR) for a stale versionKey on update — narrow the
+// retry to it specifically so a genuinely different failure (auth, network,
+// a real validation error) surfaces on its own instead of being masked by a
+// needless retry-and-different-error.
+function isStaleVersionKeyError(err: unknown): boolean {
+  return err instanceof Error && err.message.toLowerCase().includes('version key');
+}
 import type { QuestionType, IOption, IMatchPair } from '../types/question';
 import { v4 as genUuid } from 'uuid';
 
@@ -540,7 +561,7 @@ export function buildLiveQuestionMeta(): { questionName: string; questionMeta: R
 // Hook
 // ---------------------------------------------------------------------------
 export function useSaveQuestion() {
-  const { selectedNodeId, updateNode, replaceNodeId } = useTreeStore();
+  const { selectedNodeId, updateNode } = useTreeStore();
   const { save: saveHierarchy } = useSaveHierarchy();
 
   const save = useCallback(async (): Promise<boolean> => {
@@ -558,30 +579,126 @@ export function useSaveQuestion() {
       const { questionName, questionMeta } = built;
 
       if (isExisting) {
-        // ── Update existing question via hierarchy update ───────────────────
-        // Old editor always sends full metadata in nodesModified for both new
-        // and modified questions — same field set, isNew:false for existing.
-        updateNode(selectedNodeId, { name: questionName, ...questionMeta });
+        const nodeId = selectedNodeId;
+        const node = useTreeStore.getState().getNodeById(nodeId);
+        const cached = useTreeStore.getState().treeCache[nodeId] ?? {};
+        const visibility = (cached.visibility ?? node?.metadata?.visibility) as string | undefined;
+
+        if (visibility === 'Default') {
+          // ── Standalone question — content edits go straight to the question API ──
+          const versionKey = (cached.versionKey ?? node?.metadata?.versionKey) as string | undefined;
+          let freshVersionKey: string;
+          try {
+            freshVersionKey = (await updateQuestion(nodeId, versionKey ?? '', questionMeta)).versionKey;
+          } catch (err) {
+            if (!isStaleVersionKeyError(err)) throw err;
+            // Stale versionKey — re-read the current one and retry once.
+            const latest = await readQuestion(nodeId);
+            freshVersionKey = (await updateQuestion(nodeId, (latest.versionKey as string) ?? '', questionMeta)).versionKey;
+          }
+          updateNode(nodeId, { name: questionName, ...questionMeta, visibility: 'Default', versionKey: freshVersionKey });
+
+          // Republish immediately — an edit to a Live question lands on a
+          // Draft/image copy (plan.md); without this it stays saved but
+          // invisible until something else republishes it. The content
+          // update above already succeeded either way, so isDirty clears
+          // regardless — but the toast must say so when publish fails, not
+          // claim an unqualified success while the edit sits invisible.
+          let published = true;
+          try {
+            await publishQuestion(nodeId);
+          } catch (publishErr) {
+            published = false;
+            console.error('[useSaveQuestion] republish failed, edit stays unpublished:', publishErr);
+          }
+
+          if (published) {
+            notifySuccess(label('messages.success.013', 'Question saved'));
+          } else {
+            notifyError(label(
+              'messages.error.republishFailed',
+              'Question saved, but could not be published — this edit stays hidden until it\'s republished.',
+            ));
+          }
+          setIsDirty(false);
+          useEditorStore.getState().eventHandlers.onQuestionSaved?.({ identifier: nodeId, ...questionMeta });
+          return true;
+        }
+
+        // ── Legacy Parent-visibility question — hierarchy update, unchanged ──
+        updateNode(nodeId, { name: questionName, ...questionMeta });
         if (await saveHierarchy()) {
           notifySuccess(label('messages.success.013', 'Question saved'));
           setIsDirty(false);
-          useEditorStore.getState().eventHandlers.onQuestionSaved?.({ identifier: selectedNodeId, ...questionMeta });
+          useEditorStore.getState().eventHandlers.onQuestionSaved?.({ identifier: nodeId, ...questionMeta });
           return true;
         }
         return false;
       } else {
-        // ── New question — build UUID, create via hierarchy ─────────────────
-        const questionUuid = genUuid();
-        // Replace temp- node with UUID, store full metadata, trigger hierarchy save
-        replaceNodeId(selectedNodeId, questionUuid);
-        updateNode(questionUuid, { name: questionName, ...questionMeta });
-        if (await saveHierarchy()) {
-          notifySuccess(label('messages.success.007', 'Question created'));
-          setIsDirty(false);
-          useEditorStore.getState().eventHandlers.onQuestionSaved?.({ identifier: questionUuid, ...questionMeta });
-          return true;
+        // ── New question — "Create Question" always makes a standalone
+        // object, never attached to a section or listed in any hierarchy.
+        // Attaching it to a set is a separate, explicit action (the Library
+        // sidebar's "+" button, which calls questionset/v2/add) — so no
+        // hierarchy update ever runs for creation itself.
+        const rootMeta = (useTreeStore.getState().treeData[0]?.metadata ?? {}) as Record<string, unknown>;
+
+        const createMeta: Record<string, unknown> = {
+          ...questionMeta,
+          name: questionName,
+          code: genUuid(),
+          visibility: 'Default',
+          // schemaVersion is backend-managed and rejected on create
+          // (ERROR_RESTRICTED_PROP) — only qumlVersion is accepted here.
+          ...(rootMeta.qumlVersion !== undefined ? { qumlVersion: rootMeta.qumlVersion } : {}),
+        };
+
+        const { identifier } = await createQuestion(createMeta);
+
+        // Publish immediately — like the old AssessmentItem flow, a newly
+        // created question must be usable right away. Left as Draft it
+        // would be invisible in the library search (status:"Live" only).
+        let published = true;
+        try {
+          await publishQuestion(identifier);
+        } catch (publishErr) {
+          published = false;
+          console.error('[useSaveQuestion] publish failed, question stays Draft:', publishErr);
         }
-        return false;
+
+        if (published) {
+          notifySuccess(label('messages.success.007', 'Question created'));
+        } else {
+          notifyError(label(
+            'messages.error.publishFailed',
+            'Question created, but could not be published — it stays a Draft and won\'t show up in the Library until published.',
+          ));
+        }
+
+        // Stay on the question editor a moment before navigating back — the
+        // search index behind the library doesn't reflect a just-created/
+        // published question immediately, so this also gives it time to
+        // catch up before the refresh below.
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        // Whatever was selected before "Create Question" was clicked
+        // (stashed by QuestionTypeSelectorModal) — restore it once the
+        // scratch node below is gone, instead of leaving nothing selected.
+        const previousSelectedNodeId = useTreeStore.getState().treeCache[selectedNodeId]
+          ?.previousSelectedNodeId as string | undefined;
+
+        // The temp- node was only a scratch vehicle for the authoring UI —
+        // drop it now that the question exists standalone on the backend.
+        useTreeStore.getState().deleteNode(selectedNodeId);
+
+        if (previousSelectedNodeId && useTreeStore.getState().getNodeById(previousSelectedNodeId)) {
+          useTreeStore.getState().selectNode(previousSelectedNodeId);
+        }
+
+        refreshLibrary();
+
+        setIsDirty(false);
+        useEditorStore.getState().eventHandlers.onQuestionSaved?.({ identifier, ...createMeta });
+        return true;
       }
     } catch (e) {
       console.error('[useSaveQuestion] save failed:', e);
@@ -590,7 +707,7 @@ export function useSaveQuestion() {
     } finally {
       setIsSaving(false);
     }
-  }, [selectedNodeId, updateNode, replaceNodeId, saveHierarchy]);
+  }, [selectedNodeId, updateNode, saveHierarchy]);
 
   return { save };
 }

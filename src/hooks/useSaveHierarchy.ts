@@ -24,7 +24,9 @@ function buildSavePayload(
     'id', 'isFolder', 'isQuestion', 'children', 'parent', 'isNew', 'breadcrumb', 'title', 'metadata', 'questionType', 'objectType',
     // System/read-only fields hydrated from question/v2/read — the backend
     // rejects index/depth and manages the rest itself; old editor never sends them.
-    'index', 'depth', 'status', 'versionKey', 'createdOn', 'lastUpdatedOn', 'lastStatusChangedOn','graphId'
+    'index', 'depth', 'status', 'versionKey', 'createdOn', 'lastUpdatedOn', 'lastStatusChangedOn','graphId',
+    // Standalone-question bookkeeping (useSaveQuestion) — never a hierarchy field.
+    'previousSelectedNodeId',
   ]);
   const ARRAY_FIELDS  = new Set(['audience', 'medium', 'gradeLevel', 'subject', 'keywords', 'language', 'topic']);
   const NUMBER_FIELDS = new Set(['copyrightYear', 'maxScore', 'expectedDuration', 'maxAttempts']);
@@ -66,6 +68,14 @@ function buildSavePayload(
     // saving). Exclude it from nodesModified and from hierarchy children so the
     // hierarchy API only receives fully-formed question metadata.
     if (isLeaf && identifier.startsWith('temp-')) {
+      return;
+    }
+
+    // Standalone (visibility: "Default") questions are created/updated via
+    // the question API directly (useSaveQuestion), never through hierarchy
+    // update — only their id in the parent's `children` array matters here.
+    const visibility = (cached?.visibility ?? node.metadata?.visibility) as string | undefined;
+    if (isLeaf && visibility === 'Default') {
       return;
     }
 

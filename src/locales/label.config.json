@@ -246,7 +246,14 @@
       "037": "Unable to accepted question",
       "038": "Unable to approve content",
       "041": "Adding question to questionset failed. Please try again.",
-      "042": "Please fill valid question details."
+      "042": "Please fill valid question details.",
+      "selectSection": "Select a section to add the question to",
+      "sectionNotSaved": "Save this section before adding questions to it",
+      "alreadyInSet": "This question is already in the set",
+      "maxDepth": "Cannot add here — maximum depth reached",
+      "attachFailed": "Could not add this question — please try again",
+      "republishFailed": "Question saved, but could not be published — this edit stays hidden until it's republished.",
+      "publishFailed": "Question created, but could not be published — it stays a Draft and won't show up in the Library until published."
     },
     "success": {
       "001": "Content is saved",
@@ -261,7 +268,8 @@
       "038": "Content is successfully approved",
       "039": "Content is successfully rejected",
       "040": "Content sent back for corrections",
-      "043": "Comment saved successfully"
+      "043": "Comment saved successfully",
+      "questionAdded": "\"{NAME}\" added"
     }
   },
   "categoryLabels": {
@@ -298,7 +306,7 @@
     "reviewerFeedback": "Reviewer feedback",
     "unsavedQuestion": "Unsaved question",
     "hierarchy": "Hierarchy",
-    "addQuestion": "Add Question",
+    "createQuestion": "Create Question",
     "addSection": "Add Section",
     "typeMcq": "Multiple Choice",
     "typeMcqDesc": "Pick one correct option from a list",
@@ -424,6 +432,26 @@
     "subscript": "Subscript",
     "superscript": "Superscript",
     "questionSet": "Question Set",
-    "agreeTerms": "I agree to the Terms & Conditions and Content Policy"
+    "agreeTerms": "I agree to the Terms & Conditions and Content Policy",
+    "questionLibrary": "Question Library",
+    "collapseLibraryPanel": "Collapse library panel",
+    "searchLibrary": "Search library…",
+    "clearSearch": "Clear search",
+    "filterByQuestionType": "Filter by question type",
+    "questionList": "Question list",
+    "loadingQuestions": "Loading questions…",
+    "noQuestionsFound": "No questions found. Try a different search.",
+    "untitledQuestion": "Untitled Question",
+    "addToQuestionSet": "Add to question set",
+    "loadMoreQuestions": "Load more questions",
+    "loading": "Loading…",
+    "loadMore": "Load more",
+    "filterAll": "All",
+    "filterMatch": "Match",
+    "sortAZ": "Sort A–Z",
+    "sortByRecent": "Switch to most recent first",
+    "sortAZLabel": "A–Z",
+    "sortRecentLabel": "Recent",
+    "hasRequiredFields": "Has required fields"
   }
 }

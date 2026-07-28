@@ -8,6 +8,7 @@ import { useValidateAndSave } from '../../hooks/useValidateAndSave';
 import { useToolbarActions } from '../../hooks/useToolbarActions';
 import { Topbar } from '../Topbar/Topbar';
 import OutlineTree from '../OutlineTree/OutlineTree';
+import LibraryDock from '../LibraryDock/LibraryDock';
 import { useUiStore } from '../../store/ui.store';
 import { notifySuccess } from '../../utils/notify';
 import { label } from '../../utils/labels';
@@ -24,6 +25,7 @@ interface SplitEditorShellProps {
 
 export function SplitEditorShell({ events }: SplitEditorShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [libraryCollapsed, setLibraryCollapsed] = useState(false);
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
   const [isFormValid, setIsFormValid] = useState(true);
   const [pendingBack, setPendingBack] = useState(false);
@@ -179,6 +181,32 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
             onToolbarEvent={handleToolbarEvent}
           />
         </main>
+
+        {/* Right — Question library */}
+        {/* Locked while a question is being edited, like the left hierarchy. */}
+        {editorMode === 'edit' && (
+          <>
+            <aside
+              className={`ce-lib${libraryCollapsed || questionEditorOpen ? ' collapsed' : ''}`}
+              style={questionEditorOpen ? { pointerEvents: 'none' } : undefined}
+              aria-disabled={questionEditorOpen || undefined}
+            >
+              <LibraryDock onCollapse={() => setLibraryCollapsed(true)} />
+            </aside>
+
+            {/* Reopen tab when library is collapsed */}
+            {libraryCollapsed && !questionEditorOpen && (
+              <button
+                className="ce-reopen right"
+                onClick={() => setLibraryCollapsed(false)}
+                title="Show question library"
+                aria-label="Show question library panel"
+              >
+                ‹
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {/* Modals */}

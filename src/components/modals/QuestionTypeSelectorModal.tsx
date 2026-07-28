@@ -17,13 +17,20 @@ export const QuestionTypeSelectorModal: React.FC = () => {
   const closeModal           = useUiStore((s) => s.closeModal);
   const setPendingEditorOpen = useUiStore((s) => s.setPendingEditorOpen);
   const addNode              = useTreeStore((s) => s.addNode);
+  const updateNode           = useTreeStore((s) => s.updateNode);
 
   if (activeModal !== 'questionTypeSelector') return null;
 
   const parentId = (modalData.parentId as string | undefined) ?? '';
+  const previousSelectedNodeId = modalData.previousSelectedNodeId as string | undefined;
 
   const handleSelect = (type: QuestionType) => {
     const newId = addNode(parentId, 'question', type);
+    // Stashed so useSaveQuestion can restore selection here once the
+    // standalone question is created and its scratch node is dropped.
+    if (previousSelectedNodeId) {
+      updateNode(newId, { previousSelectedNodeId });
+    }
     closeModal();
     // Signal ContextualEditor to open inline editor immediately for the new question
     setPendingEditorOpen(newId);

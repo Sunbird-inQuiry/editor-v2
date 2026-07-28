@@ -110,6 +110,28 @@ export async function updateHierarchy(
   };
 }
 
+/** `PATCH questionset/v2/add` — attaches existing questions to a section; appends after maxIndex. */
+export async function addQuestionsToSet(
+  rootId: string,
+  collectionId: string,
+  children: string[],
+): Promise<void> {
+  await apiClient.patch(URLS.questionSet.add, {
+    request: { questionset: { rootId, collectionId, children } },
+  });
+}
+
+/** `DELETE questionset/v2/remove` — detaches questions from a section (never retires them). */
+export async function removeQuestionsFromSet(
+  rootId: string,
+  collectionId: string,
+  children: string[],
+): Promise<void> {
+  await apiClient.delete(URLS.questionSet.removeNode, {
+    data: { request: { questionset: { rootId, collectionId, children } } },
+  });
+}
+
 export async function publishContent(contentId: string, lastPublishedBy = ''): Promise<void> {
   await apiClient.post(`${URLS.questionSet.publish}/${contentId}`, {
     request: { questionset: { lastPublishedBy } },

@@ -12,7 +12,7 @@ import { telemetryImpression, setTelemetryPageId } from '../../utils/telemetry';
 import { useFramework } from '../../hooks/useFramework';
 import { useQuestionRead } from '../../hooks/useQuestionRead';
 import { useLabels } from '../../hooks/useLabels';
-import SparkMetaForm from '../SparkMetaForm/SparkMetaForm';
+import SparkMetaForm, { fieldMatchesSection } from '../SparkMetaForm/SparkMetaForm';
 import QuestionDetail from '../QuestionDetail/QuestionDetail';
 
 const QuestionEditor = lazy(() => import('../QuestionEditor/QuestionEditor'));
@@ -33,14 +33,16 @@ type TabKey = 'details' | 'audience' | 'behaviour' | 'question' | 'meta';
 
 interface TabDef { key: TabKey; label: string; section?: string; }
 
+// section must match exactly what each tab's own <SparkMetaForm section="…"/>
+// below is called with — reused to check for required fields per tab.
 const SET_TABS: TabDef[] = [
-  { key: 'details', label: 'Details' },
+  { key: 'details', label: 'Details', section: 'Details' },
   { key: 'audience', label: 'Audience & Curriculum', section: 'Audience & Curriculum' },
-  { key: 'behaviour', label: 'Behaviour' },
+  { key: 'behaviour', label: 'Behaviour', section: 'Behaviour' },
 ];
 const SECTION_TABS: TabDef[] = [
-  { key: 'details', label: 'Details' },
-  { key: 'behaviour', label: 'Behaviour' },
+  { key: 'details', label: 'Details', section: 'Details' },
+  { key: 'behaviour', label: 'Behaviour', section: 'Behaviour' },
 ];
 const QUESTION_TABS: TabDef[] = [
   { key: 'question', label: 'Question' },
@@ -170,6 +172,19 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
 
   const formConfig = isCurrentNodeRoot ? rootFormConfig : unitFormConfig;
   const nodeTabs = isCurrentNodeQuestion ? QUESTION_TABS : isCurrentNodeRoot ? SET_TABS : SECTION_TABS;
+
+  // Required fields can be scattered across tabs the user hasn't opened yet
+  // (validation only surfaces them on Save) — mark any tab that has at
+  // least one required field up front, so it's not a surprise at save time.
+  // Question tabs aren't checked: "question" is a read-only preview, and
+  // "meta" is always read-only too (question fields are authored inside the
+  // question editor itself, not here).
+  const tabHasRequiredField = useCallback(
+    (tab: TabDef): boolean =>
+      !isCurrentNodeQuestion &&
+      (formConfig ?? []).some((f) => f.visible && f.required && fieldMatchesSection(f, tab.section)),
+    [isCurrentNodeQuestion, formConfig],
+  );
 
   // Meta subtitle
   const metaSubtitle = (() => {
@@ -347,6 +362,9 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                     onClick={() => { setActiveTab(tab.key); setInlineEditorOpen(false); }}
                   >
                     {L(`ui.${tab.key}`, tab.label)}
+                    {tabHasRequiredField(tab) && (
+                      <span className="ce-tab-required" aria-label={L('ui.hasRequiredFields', 'Has required fields')}> *</span>
+                    )}
                   </button>
                 ))}
               </div>

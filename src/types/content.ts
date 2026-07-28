@@ -5,6 +5,7 @@ export interface IContent {
   mimeType?: string;
   contentType?: string;
   primaryCategory?: string;
+  questionType?: string;
   appIcon?: string;
   channel?: string;
   organisation?: string[];
@@ -12,6 +13,8 @@ export interface IContent {
   status?: string;
   visibility?: string;
   pkgVersion?: number;
+  subject?: string[];
+  gradeLevel?: string[];
 }
 
 export interface ILibraryItem extends IContent {
@@ -19,11 +22,19 @@ export interface ILibraryItem extends IContent {
   isDragging?: boolean;
 }
 
-export const QUESTION_FILTERS: ReadonlyArray<{ label: string; value: string }> = [
-  { label: 'All', value: 'all' },
-  { label: 'Multiple Choice', value: 'Multiple Choice Question' },
-  { label: 'Multi-Select', value: 'Multi Select Question' },
-  { label: 'Subjective', value: 'Subjective Question' },
-  { label: 'Fill in Blank', value: 'FTB Question' },
-  { label: 'Match Following', value: 'Match The Following Question' },
+// Matches the registry's question-type primaryCategory values exactly
+// (src/registry/defaultQuestionTypes.ts) — 'all' plus one chip per type.
+// labelKey reuses the registry's own ui.type* keys (defaultQuestionTypes.ts)
+// where the chip text matches verbatim, so translations aren't duplicated —
+// this is a plain data file (no hooks), so L() itself is applied by the
+// caller (LibraryDock), same pattern as the registry's label/labelKey pairs.
+export const QUESTION_FILTERS: ReadonlyArray<{ label: string; labelKey: string; value: string }> = [
+  { label: 'All', labelKey: 'ui.filterAll', value: 'all' },
+  { label: 'Multiple Choice', labelKey: 'ui.typeMcq', value: 'Multiple Choice Question' },
+  { label: 'Fill in the Blank', labelKey: 'ui.typeFtb', value: 'FTB Question' },
+  { label: 'Subjective', labelKey: 'ui.typeSa', value: 'Subjective Question' },
+  { label: 'Match', labelKey: 'ui.filterMatch', value: 'Match The Following Question' },
+  { label: 'Sequence', labelKey: 'ui.typeSeq', value: 'Sequence Question' },
+  { label: 'Reorder', labelKey: 'ui.typeReo', value: 'Reorder Question' },
+  { label: 'True/False', labelKey: 'ui.typeBoolean', value: 'Boolean Question' },
 ];

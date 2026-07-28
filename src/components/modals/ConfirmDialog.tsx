@@ -4,6 +4,7 @@ import { Icon } from '../shared/Icon';
 import { useUiStore } from '../../store/ui.store';
 import { useTreeStore } from '../../store/tree.store';
 import { deleteQuestion } from '../../api/question';
+import { removeQuestionsFromSet } from '../../api/hierarchy';
 import { useEditorStore } from '../../store/editor.store';
 import { useLabels } from '../../hooks/useLabels';
 
@@ -38,9 +39,21 @@ export const ConnectedConfirmDialog: React.FC = () => {
 
   const handleConfirm = async () => {
     if (nodeId) {
-      // For real (non-temp) questions, retire via API — same as old editor
       if (isQuestion && !nodeId.startsWith('temp-')) {
-        try { await deleteQuestion(nodeId); } catch { /* best-effort */ }
+        const visibility = node?.metadata?.visibility as string | undefined;
+        if (visibility === 'Default') {
+          // Standalone question — detach only. It may be reused in other
+          // questionsets, so it must never be retired from here.
+          const treeData = useTreeStore.getState().treeData;
+          const rootId = treeData[0]?.identifier;
+          const sectionId = node?.parent;
+          if (rootId && sectionId) {
+            try { await removeQuestionsFromSet(rootId, sectionId, [nodeId]); } catch { /* best-effort */ }
+          }
+        } else {
+          // Legacy Parent-visibility question — retire via API, same as old editor.
+          try { await deleteQuestion(nodeId); } catch { /* best-effort */ }
+        }
       }
       deleteNode(nodeId);
       setIsDirty(true);

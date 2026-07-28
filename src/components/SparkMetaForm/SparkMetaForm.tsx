@@ -158,7 +158,10 @@ function isRangeItem(v: unknown): v is RangeItem {
  */
 const NAMED_SECTIONS = ['Audience & Curriculum', 'Licensing'];
 
-function fieldMatchesSection(field: ICategoryField, section?: string): boolean {
+/** Exported so callers (e.g. ContextualEditor's tab bar) can check whether a
+ *  given tab's section has any required field, using the exact same
+ *  matching rule the tab's own <SparkMetaForm section="..."/> render uses. */
+export function fieldMatchesSection(field: ICategoryField, section?: string): boolean {
   if (section === undefined) {
     // Details tab: include fields with no section or unknown section
     return !field.section || !NAMED_SECTIONS.includes(field.section);
