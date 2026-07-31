@@ -59,7 +59,16 @@ export function useQuestionRead() {
     // Stale response for a previously-selected question — ignore.
     if ((raw['identifier'] as string) !== selectedNodeId) return;
 
-    useTreeStore.getState().hydrateNodeMeta(selectedNodeId, raw);
+    // The Details tab's "Marks" field is a flat `maxScore` key (the same
+    // one the user's own typing writes into treeCache) — a real backend
+    // read only ever returns the nested outcomeDeclaration.maxScore.
+    // defaultValue, so without flattening it here the field silently shows
+    // empty/default for any re-opened existing question.
+    const outcomeDeclaration = raw['outcomeDeclaration'] as Record<string, unknown> | undefined;
+    const maxScoreDefault = (outcomeDeclaration?.['maxScore'] as Record<string, unknown> | undefined)?.['defaultValue'];
+    const hydrated = typeof maxScoreDefault === 'number' ? { ...raw, maxScore: maxScoreDefault } : raw;
+
+    useTreeStore.getState().hydrateNodeMeta(selectedNodeId, hydrated);
 
     // Don't clobber in-progress edits with the (older) server state.
     if (useQuestionStore.getState().isDirty) return;

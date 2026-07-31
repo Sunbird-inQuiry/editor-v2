@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, lazy, Suspense, Fragment } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import ImagePickerModal from '../shared/ImagePickerModal';
 import { Icon } from '../shared/Icon';
 import type { EditorMode, ToolbarAction } from '../../types/editor';
@@ -12,7 +13,9 @@ import { telemetryImpression, setTelemetryPageId } from '../../utils/telemetry';
 import { useFramework } from '../../hooks/useFramework';
 import { useQuestionRead } from '../../hooks/useQuestionRead';
 import { useLabels } from '../../hooks/useLabels';
-import SparkMetaForm, { fieldMatchesSection } from '../SparkMetaForm/SparkMetaForm';
+import { searchFrameworks } from '../../api/framework';
+import SparkMetaForm, { fieldMatchesSection, SingleSelectDropdown } from '../SparkMetaForm/SparkMetaForm';
+import formStyles from '../SparkMetaForm/SparkMetaForm.module.scss';
 import QuestionDetail from '../QuestionDetail/QuestionDetail';
 
 const QuestionEditor = lazy(() => import('../QuestionEditor/QuestionEditor'));
@@ -144,6 +147,27 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
     updateNode(selectedNodeId, { [code]: value });
     onToolbarEvent({ action: 'onFormValueChange', data: { field: code, value } });
   }, [selectedNodeId, updateNode, onToolbarEvent]);
+
+  // Standalone Framework picker (Audience & Curriculum tab) — there's no
+  // category-definition field for this, so it isn't part of the generic
+  // SparkMetaForm render below. Saves onto the root's own metadata (same as
+  // any other field) AND live-updates editor.store's contentFramework so
+  // useFramework() refetches immediately — see plan for framework-driven
+  // category selection.
+  const setContentFramework = useEditorStore((s) => s.setContentFramework);
+  // Which framework `type`s are selectable comes from the category
+  // definition's own orgFWType — never hardcoded (see api/framework.ts).
+  const orgFWType = useEditorStore((s) => s.categoryMeta?.frameworkMetadata?.orgFWType);
+  const frameworkListQuery = useQuery({
+    queryKey: ['framework-search', (orgFWType ?? []).slice().sort().join(',')],
+    queryFn: () => searchFrameworks({ type: orgFWType, systemDefault: 'Yes' }),
+    staleTime: 10 * 60 * 1000,
+  });
+  const channelFrameworks = frameworkListQuery.data ?? [];
+  const handleFrameworkChange = useCallback((value: string) => {
+    setContentFramework(value || null);
+    handleFormChange('framework', value);
+  }, [setContentFramework, handleFormChange]);
 
   const handleFormValidityChange = useCallback((isValid: boolean) => {
     onToolbarEvent({ action: 'onFormStatusChange', data: { isValid } });
@@ -424,6 +448,7 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                         readOnly={isReadOnly}
                         section="Details"
                         frameworkTerms={frameworkTerms}
+                        isRoot={isCurrentNodeRoot}
                       />
                     ) : (
                       <p className="ce-empty" style={{ flex: 'none', padding: '16px 0' }}>No fields configured.</p>
@@ -436,6 +461,23 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                   <div className="ce-tabbody">
                     <h2 className="ce-secttl">{L('ui.targetAudience', 'Target Audience')}</h2>
                     <p className="ce-sectsub">{L('ui.targetAudienceSub', 'Curriculum alignment for the intended learners.')}</p>
+
+                    {channelFrameworks.length > 0 && (
+                      <div className={formStyles.field} style={{ marginBottom: 22 }}>
+                        <label htmlFor="framework-picker" className={formStyles.label}>
+                          {L('ui.framework', 'Framework')}
+                        </label>
+                        <SingleSelectDropdown
+                          fieldId="framework-picker"
+                          value={String((activeNodeMeta as Record<string, unknown> | undefined)?.framework ?? '')}
+                          options={channelFrameworks.map((fw) => ({ value: fw.identifier, label: fw.name }))}
+                          disabled={isReadOnly}
+                          placeholder={L('ui.selectFramework', 'Select framework')}
+                          onChange={handleFrameworkChange}
+                        />
+                      </div>
+                    )}
+
                     <SparkMetaForm
                       fields={withLicenseOptions(formConfig)}
                       values={activeNodeMeta as Record<string, unknown>}
@@ -444,6 +486,7 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                       readOnly={isReadOnly}
                       section="Audience & Curriculum"
                       frameworkTerms={frameworkTerms}
+                      isRoot={isCurrentNodeRoot}
                     />
                   </div>
                 )}
@@ -471,6 +514,7 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                       readOnly={isReadOnly}
                       section="Behaviour"
                       frameworkTerms={frameworkTerms}
+                      isRoot={isCurrentNodeRoot}
                     />
                   </div>
                 )}

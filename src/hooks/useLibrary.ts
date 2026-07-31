@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useLibraryStore } from '../store/library.store';
 import { useEditorStore } from '../store/editor.store';
+import { useCopyRegistryStore } from '../store/copyRegistry.store';
 import { compositeSearch } from '../api/content';
 import type { LibraryFilters } from '../store/library.store';
 
@@ -43,8 +44,13 @@ async function loadLibrary(
     });
 
     if (requestId !== requestSeq) return; // stale response — a newer load superseded it
-    if (reset) state.setContent(content, count);
-    else state.appendContent(content, count);
+    // Copies (see copyRegistry.store.ts) are visibility:"Default" so their
+    // own future edits stay isolated, but they're private to whichever
+    // questionset they were copied into — never independently discoverable.
+    const { isCopy } = useCopyRegistryStore.getState();
+    const filtered = content.filter((item) => !isCopy(item.identifier));
+    if (reset) state.setContent(filtered, count);
+    else state.appendContent(filtered, count);
   } catch (e) {
     console.error('[useLibrary] load error:', e);
   } finally {

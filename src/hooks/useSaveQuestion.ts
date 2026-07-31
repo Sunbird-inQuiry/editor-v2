@@ -622,6 +622,7 @@ export function useSaveQuestion() {
           }
           setIsDirty(false);
           useEditorStore.getState().eventHandlers.onQuestionSaved?.({ identifier: nodeId, ...questionMeta });
+
           return true;
         }
 

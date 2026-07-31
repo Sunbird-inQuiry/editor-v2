@@ -112,6 +112,19 @@
 
 }
 
+// SingleSelectDropdown's trigger is a <button>, not a native <select> — the
+// `:not([value=""])` rule above never matches it, so set its default text
+// color explicitly and let .selectPlaceholderText override just the span.
+.selectTrigger {
+  text-align: left;
+  font-family: inherit;
+  color: var(--ink, #1a1a1a);
+}
+
+.selectPlaceholderText {
+  color: var(--sb-text-faint, #9a9a9a);
+}
+
 // ---------------------------------------------------------------------------
 // Error state
 // ---------------------------------------------------------------------------
@@ -233,6 +246,92 @@
   padding: 0 4px;
 
   &::placeholder { color: var(--sb-text-faint, #9a9a9a); }
+}
+
+// ---------------------------------------------------------------------------
+// MultiSelectSearch — searchable dropdown, multiple selections
+// ---------------------------------------------------------------------------
+
+.multiSelectWrap, .singleSelectWrap {
+  position: relative;
+}
+
+.msSearchIcon {
+  flex: none;
+  color: var(--sb-text-faint, #9a9a9a);
+}
+
+.msPanel {
+  // position/top/left/width are set inline (MultiSelectSearch tracks the
+  // trigger's own getBoundingClientRect — this is portaled to document.body,
+  // outside .ce-card's overflow:hidden, so nesting it positionally under the
+  // trigger isn't an option).
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--sb-border, #ece7df);
+  border-radius: var(--sbx-radius-lg, 10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+  z-index: 1001;
+  padding: 6px;
+}
+
+.msOption {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink, #1a1a1a);
+  border-radius: var(--sbx-radius-sm, 6px);
+  cursor: pointer;
+
+  &:hover { background: var(--sb-bg-warm, #faf7f2); }
+}
+
+.msOptionSelected {
+  color: var(--accent-deep, color-mix(in srgb, var(--accent, #A85236) 78%, #000));
+  font-weight: 600;
+}
+
+.msCheckbox {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 1.5px solid var(--sb-border, #ece7df);
+  border-radius: var(--sbx-radius-sm, 4px);
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.msOptionSelected .msCheckbox {
+  background: var(--accent, #A85236);
+  border-color: var(--accent, #A85236);
+}
+
+// SingleSelectDropdown isn't a multi-select — a checkbox-square would imply
+// it is, so this is just a checkmark glyph (reserving its width so labels
+// stay aligned whether or not this particular row is the selected one).
+.msCheck {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--accent, #A85236);
+}
+
+.msEmpty {
+  padding: 10px;
+  font-size: 13px;
+  color: var(--sb-text-faint, #9a9a9a);
+  text-align: center;
 }
 
 // ---------------------------------------------------------------------------

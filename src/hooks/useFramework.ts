@@ -17,7 +17,11 @@ export function useFramework() {
   const targetFWIds = (rootMeta?.targetFWIds as string[] | undefined)
     ?? config?.context?.targetFWIds ?? config?.config?.targetFWIds ?? [];
 
-  const orgFrameworkId = frameworkIds[0] ?? '';
+  // A live pick in the "framework" field itself (SparkMetaForm) overrides
+  // the content's own saved framework immediately, without needing a
+  // save/reload round trip first — see editor.store.ts's contentFramework.
+  const liveFramework = useEditorStore((s) => s.contentFramework);
+  const orgFrameworkId = liveFramework ?? frameworkIds[0] ?? '';
 
   const orgQuery = useQuery<IFramework>({
     queryKey: ['framework', orgFrameworkId],

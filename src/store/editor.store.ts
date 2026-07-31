@@ -37,6 +37,15 @@ interface EditorState {
   /** Channel read data (defaultLicense, frameworks, primaryCategories). */
   channelData: Record<string, unknown> | null;
   setChannelData: (data: Record<string, unknown> | null) => void;
+  /** Live override for which framework's terms populate the category
+   *  dropdowns (board/medium/gradeLevel/subject, or Industry/Domain/Skill/
+   *  Audience) — set the moment the user picks a different value in the
+   *  "framework" field itself (SparkMetaForm), not just on save/reload.
+   *  null = no override yet; useFramework() falls back to the content's own
+   *  saved framework. Reset on every new content load (see setEditorConfig)
+   *  so switching frameworks on one questionset can't leak into the next. */
+  contentFramework: string | null;
+  setContentFramework: (frameworkId: string | null) => void;
   /** Host event callbacks (IEditorEvents) registered by QuestionsetEditor. */
   eventHandlers: {
     onQuestionSaved?: (question: unknown) => void;
@@ -95,11 +104,13 @@ export const useEditorStore = create<EditorState>((set) => ({
   setLicenses: (licenses) => set({ licenses }),
   channelData: null,
   setChannelData: (data) => set({ channelData: data }),
+  contentFramework: null,
+  setContentFramework: (frameworkId) => set({ contentFramework: frameworkId }),
   eventHandlers: {},
   setEventHandlers: (handlers) => set({ eventHandlers: handlers }),
   categoryMeta: null,
 
-  setEditorConfig: (config) => set({ editorConfig: config }),
+  setEditorConfig: (config) => set({ editorConfig: config, contentFramework: null }),
   setEditorMode: (mode) => set({ editorMode: mode }),
   setButtonLoader: (key, value) =>
     set((state) => ({ buttonLoaders: { ...state.buttonLoaders, [key]: value } })),

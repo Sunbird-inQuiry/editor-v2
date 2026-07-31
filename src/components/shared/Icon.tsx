@@ -37,6 +37,7 @@ import filter      from '../../assets/icons/filter.svg?raw';
 import library     from '../../assets/icons/library.svg?raw';
 import users       from '../../assets/icons/users.svg?raw';
 import history     from '../../assets/icons/history.svg?raw';
+import clock       from '../../assets/icons/clock.svg?raw';
 import copy        from '../../assets/icons/copy.svg?raw';
 import qr          from '../../assets/icons/qr.svg?raw';
 import menu        from '../../assets/icons/menu.svg?raw';
@@ -91,6 +92,7 @@ const ICONS: Record<string, string> = {
   'library':      library,
   'users':        users,
   'history':      history,
+  'clock':        clock,
   'copy':         copy,
   'qr':           qr,
   'menu':         menu,

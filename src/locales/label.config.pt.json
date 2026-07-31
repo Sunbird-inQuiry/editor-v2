@@ -237,6 +237,8 @@
       "alreadyInSet": "Esta pergunta já está no conjunto",
       "maxDepth": "Não é possível adicionar aqui — profundidade máxima atingida",
       "attachFailed": "Não foi possível adicionar esta pergunta — tente novamente",
+      "copyFailed": "Não foi possível copiar esta pergunta — tente novamente",
+      "copyPublishFailed": "Copiada, mas não foi possível publicá-la — permanece como rascunho.",
       "republishFailed": "Pergunta salva, mas não foi possível publicá-la — esta edição ficará oculta até ser republicada.",
       "publishFailed": "Pergunta criada, mas não foi possível publicá-la — ela permanece como rascunho e não aparecerá na Biblioteca até ser publicada."
     },
@@ -254,7 +256,8 @@
       "039": "Conteúdo rejeitado com sucesso",
       "040": "Conteúdo devolvido para correções",
       "043": "Comentário salvo com sucesso",
-      "questionAdded": "\"{NAME}\" adicionada"
+      "questionAdded": "\"{NAME}\" adicionada",
+      "questionCopied": "\"{NAME}\" copiada"
     }
   },
   "ui": {
@@ -355,6 +358,8 @@
     "sectionDetails": "Detalhes da seção",
     "sectionDetailsSub": "Título e instruções para esta seção.",
     "targetAudience": "Público-alvo",
+    "framework": "Estrutura curricular",
+    "selectFramework": "Selecionar estrutura curricular",
     "targetAudienceSub": "Alinhamento curricular para os alunos pretendidos.",
     "behaviourScoring": "Comportamento e pontuação",
     "behaviourScoringSub": "Como o conjunto é cronometrado, tentado e resumido.",
@@ -425,6 +430,7 @@
     "noQuestionsFound": "Nenhuma pergunta encontrada. Tente outra pesquisa.",
     "untitledQuestion": "Pergunta sem título",
     "addToQuestionSet": "Adicionar ao conjunto de perguntas",
+    "copyQuestion": "Copiar para esta seção",
     "loadMoreQuestions": "Carregar mais perguntas",
     "loading": "Carregando…",
     "loadMore": "Carregar mais",
@@ -433,7 +439,6 @@
     "sortAZ": "Ordenar de A a Z",
     "sortByRecent": "Mudar para mais recentes primeiro",
     "sortAZLabel": "A–Z",
-    "sortRecentLabel": "Recentes",
     "hasRequiredFields": "Contém campos obrigatórios"
   },
   "categoryLabels": {
