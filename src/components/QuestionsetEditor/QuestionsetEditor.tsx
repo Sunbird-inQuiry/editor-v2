@@ -1,11 +1,12 @@
 import React, { Component, useEffect } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { useEditorStore } from '../../store/editor.store';
 import { useTelemetry } from '../../hooks/useTelemetry';
 import type { IEditorConfig, IEditorEvents } from '../../types/editor';
 import { useEditorInit } from '../../hooks/useEditorInit';
 import SplitEditorShell from '../SplitEditorShell/SplitEditorShell';
+import { queryClient } from '../../queryClient';
 import styles from './QuestionsetEditor.module.scss';
 import '../../styles/global.scss';
 
@@ -14,19 +15,6 @@ import '../../styles/global.scss';
 // ---------------------------------------------------------------------------
 
 export type QuestionsetEditorProps = IEditorConfig & IEditorEvents;
-
-// ---------------------------------------------------------------------------
-// QueryClient (singleton per component tree)
-// ---------------------------------------------------------------------------
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 5 * 60 * 1000,
-    },
-  },
-});
 
 // ---------------------------------------------------------------------------
 // Error Boundary

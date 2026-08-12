@@ -412,6 +412,8 @@
     "invalidEnterQuestion": "Enter the question first",
     "invalidEnterTitle": "Enter the title in Details",
     "invalidEnterMarks": "Enter the marks in Details",
+    "invalidSelectFramework": "Select a framework in Details",
+    "invalidLoadingFrameworks": "Loading frameworks…",
     "invalidFillDetails": "Fill all required fields in Details",
     "invalidFillOptions": "Fill in all options",
     "invalidMarkCorrect": "Mark one option as the correct answer",

@@ -22,6 +22,10 @@ export interface ICategory {
   code: string;
   name: string;
   description?: string;
+  /** Category order within the framework — the highest-index category is
+   *  the skill-equivalent leaf (e.g. USF's Skill, or a K-12 framework's
+   *  most granular category); only it may take more than one term. */
+  index?: number;
   terms?: ITerm[];
 }
 

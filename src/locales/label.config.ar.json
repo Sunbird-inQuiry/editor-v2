@@ -403,6 +403,8 @@
     "invalidEnterQuestion": "أدخل السؤال أولاً",
     "invalidEnterTitle": "أدخل العنوان في التفاصيل",
     "invalidEnterMarks": "أدخل الدرجات في التفاصيل",
+    "invalidSelectFramework": "اختر الإطار في التفاصيل",
+    "invalidLoadingFrameworks": "جارٍ تحميل الإطارات…",
     "invalidFillDetails": "املأ جميع الحقول المطلوبة في التفاصيل",
     "invalidFillOptions": "املأ جميع الخيارات",
     "invalidMarkCorrect": "حدد خياراً واحداً كإجابة صحيحة",

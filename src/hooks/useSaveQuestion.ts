@@ -34,6 +34,9 @@ import { getUserId } from '../utils/context';
 import { applyContentI18n } from '../utils/i18nSerialize';
 import { resolveQuestionType } from '../registry';
 import { htmlToText } from '../utils/html';
+import { queryClient } from '../queryClient';
+import { resolveTargetFrameworkIds } from './useFramework';
+import type { IFramework } from '../types/framework';
 
 // VersionKeyValidator.scala throws this exact message (ClientException,
 // ResponseCode.CLIENT_ERROR) for a stale versionKey on update — narrow the
@@ -337,6 +340,26 @@ function buildAnswerHtml(type: QuestionType, options: IOption[], answerText: str
 }
 
 // ---------------------------------------------------------------------------
+// Category codes for a question's own framework — org framework's own
+// categories PLUS every target framework's (same merge useFramework.ts's
+// frameworkTerms does via addCategories(org); targetData.forEach(addCategories),
+// just reading straight out of the query cache that hook already populated
+// instead of subscribing to it). Missing the target half would silently
+// drop a term picked under a target-only category, same failure mode this
+// sweep exists to avoid for the org side.
+// ---------------------------------------------------------------------------
+function resolveCategoryCodesForFramework(orgFrameworkId: string): string[] {
+  const codes = new Set<string>();
+  const addFrom = (fwId: string) => {
+    const categories = queryClient.getQueryData<IFramework>(['framework', fwId])?.categories ?? [];
+    for (const c of categories) codes.add(c.code);
+  };
+  addFrom(orgFrameworkId);
+  resolveTargetFrameworkIds().forEach(addFrom);
+  return [...codes];
+}
+
+// ---------------------------------------------------------------------------
 // buildLiveQuestionMeta — the same metadata object useSaveQuestion sends to
 // the backend, built purely from live in-memory state (no API call). Used
 // both by save() below and by the question editor's pre-save preview, which
@@ -357,7 +380,18 @@ export function buildLiveQuestionMeta(): { questionName: string; questionMeta: R
 
   const channel         = config?.context?.channel   ?? '';
   const createdBy       = getUserId(config?.context);
-  const framework       = config?.context?.framework ?? '';
+  // Same precedence as useFramework.ts: a framework the user just picked on
+  // this question wins, then the questionset's own live/saved framework
+  // (contentFramework mirrors a not-yet-saved pick made on the root form),
+  // then the host-supplied default.
+  const rootMeta = (treeData[0]?.metadata ?? {}) as Record<string, unknown>;
+  const liveFramework = useEditorStore.getState().contentFramework;
+  const questionOwnFramework = (useTreeStore.getState().activeNodeMeta as Record<string, unknown> | undefined)?.framework;
+  const framework =
+    (typeof questionOwnFramework === 'string' && questionOwnFramework) ||
+    liveFramework ||
+    (rootMeta.framework as string) ||
+    (config?.context?.framework ?? '');
   // qType / category / interaction come from the question type registry.
   const typeDef = resolveQuestionType(questionType);
   const primaryCategory = typeDef?.primaryCategory ?? 'Multiple Choice Question';
@@ -457,15 +491,32 @@ export function buildLiveQuestionMeta(): { questionName: string; questionMeta: R
       ? { [hintUuid]: { en: hintText } }
       : {};
 
-    // License only — board/medium/gradeLevel/subject/audience are no longer
-    // copied from the root questionset onto every question.
-    const rootMeta = (treeData[0]?.metadata ?? {}) as Record<string, unknown>;
     const taxonomy: Record<string, unknown> = {};
     if (rootMeta.license) taxonomy.license = rootMeta.license;
     // Old editor: channel read supplies the default license when unset.
     if (!taxonomy.license) {
       const defaultLicense = useEditorStore.getState().channelData?.defaultLicense;
       if (typeof defaultLicense === 'string' && defaultLicense) taxonomy.license = defaultLicense;
+    }
+
+    // Framework + category-term selection is attached to the questionset's
+    // own metadata via useSaveHierarchy's cleanMetadata() — replicate the
+    // same attachment here so a question explicitly given its own category
+    // terms (picked in the question's own Details form) actually reaches
+    // the backend instead of staying only in treeCache. The static K-12
+    // codes cover a childForm with no framework chosen; once THIS question
+    // has its own framework, that framework's own categories (org AND
+    // target — see resolveCategoryCodesForFramework) are swept in too, so
+    // the field list always matches whatever categories that framework
+    // actually has instead of a fixed K-12 guess.
+    const STATIC_CATEGORY_FIELDS = ['board', 'medium', 'gradeLevel', 'subject', 'audience', 'topic', 'keywords', 'language'];
+    const frameworkCategoryCodes = framework ? resolveCategoryCodesForFramework(framework) : [];
+    const categoryFields = new Set([...STATIC_CATEGORY_FIELDS, ...frameworkCategoryCodes]);
+    const detailMeta = { ...(useTreeStore.getState().getNodeById(selectedNodeId)?.metadata ?? {}), ...formMeta };
+    for (const field of categoryFields) {
+      const v = detailMeta[field];
+      if (v === undefined) continue;
+      taxonomy[field] = Array.isArray(v) ? v : (v != null && v !== '' ? [v] : []);
     }
 
     const questionMeta: Record<string, unknown> = {

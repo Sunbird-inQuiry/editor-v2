@@ -41,6 +41,15 @@ export interface SparkMetaFormProps {
    */
   section?: string;
   /**
+   * Bypasses the `section` tab logic entirely — every visible field is
+   * rendered regardless of its own `section`. For a caller with no tabs at
+   * all (the question editor's Details form, the read-only question meta
+   * view): omitting `section` there would otherwise mean "show only the
+   * untabbed fields" (root's Details-tab meaning), silently dropping any
+   * framework-driven category field tagged 'Audience & Curriculum'.
+   */
+  showAllSections?: boolean;
+  /**
    * Framework terms keyed by sourceCategory (e.g. "board", "medium",
    * "gradeLevel", "subject").  When provided, fields whose `sourceCategory`
    * matches a key will be populated from this map instead of falling back to
@@ -50,6 +59,13 @@ export interface SparkMetaFormProps {
    * — `identifier` is used as the option value, `name` as the visible label.
    */
   frameworkTerms?: Map<string, FrameworkTerm[]>;
+  /**
+   * Category codes in framework order (ascending `index`), from the same
+   * `useFramework()` call that produced `frameworkTerms` — see
+   * `adaptFieldsForFramework`'s single-vs-multi-select rule below. Only
+   * meaningful together with `isRoot`; omit for section/question forms.
+   */
+  categoryOrder?: string[];
   /**
    * True for the root (questionset-level) form only. The "framework" field
    * (code: 'framework') is special-cased to live-update which framework's
@@ -172,8 +188,13 @@ const NAMED_SECTIONS = ['Audience & Curriculum', 'Licensing'];
 
 /** Exported so callers (e.g. ContextualEditor's tab bar) can check whether a
  *  given tab's section has any required field, using the exact same
- *  matching rule the tab's own <SparkMetaForm section="..."/> render uses. */
-export function fieldMatchesSection(field: ICategoryField, section?: string): boolean {
+ *  matching rule the tab's own <SparkMetaForm section="..."/> render uses.
+ *  `showAllSections` bypasses the tab logic entirely — for a caller with no
+ *  tabs at all (the question editor's Details form, the read-only question
+ *  meta view), where "undefined section" must mean "show everything",
+ *  not "show only the untabbed fields" (root's actual meaning for it). */
+export function fieldMatchesSection(field: ICategoryField, section?: string, showAllSections?: boolean): boolean {
+  if (showAllSections) return true;
   if (section === undefined) {
     // Details tab: include fields with no section or unknown section
     return !field.section || !NAMED_SECTIONS.includes(field.section);
@@ -369,18 +390,61 @@ function isFrameworkDrivenField(field: ICategoryField): boolean {
 function adaptFieldsForFramework(
   fields: ICategoryField[],
   frameworkTerms: Map<string, FrameworkTerm[]> | undefined,
+  categoryOrder: string[] | undefined,
+  isRoot: boolean,
 ): ICategoryField[] {
   // No framework categories loaded yet (still fetching, or none selected) —
   // leave the static field list exactly as the category-definition API gave it.
   if (!frameworkTerms || frameworkTerms.size === 0) return fields;
 
   const frameworkCategoryCodes = new Set(frameworkTerms.keys());
+  // Only the highest-index (skill-equivalent leaf) category may hold more
+  // than one term — Industry/Domain, Board/Medium/Grade etc. narrow down a
+  // single path through the taxonomy. Root-only: a question's own category
+  // fields keep whatever inputType the category definition's childForm
+  // gave them (questionset creation is the only place this constraint was
+  // asked for).
+  const highestIndexCode = isRoot && categoryOrder?.length
+    ? categoryOrder[categoryOrder.length - 1]
+    : undefined;
 
-  const kept = fields.filter((f) => {
-    if (!isFrameworkDrivenField(f)) return true;
-    const categoryCode = f.sourceCategory ?? f.code;
-    return frameworkCategoryCodes.has(categoryCode);
-  });
+  // A static field's own code doesn't always match the live framework's
+  // category code — a category-definition form can name its board field
+  // e.g. 'boardIds' while the framework's own category code is 'board',
+  // with no sourceCategory to bridge the two. Falling back to a label
+  // match (Board ~ board) catches that: without it, such a field (a) never
+  // resolves its options from frameworkTerms (sits empty, since
+  // buildOptions() looks it up by sourceCategory ?? code), AND (b) never
+  // registers in keptCodes below, so the dynamic-synthesis loop adds a
+  // SECOND field for the very same category — the duplicate Board/Medium/
+  // GradeLevel/Subject rows this fixes.
+  const resolveCategoryCode = (field: ICategoryField): string | undefined => {
+    if (field.sourceCategory) return field.sourceCategory;
+    if (frameworkCategoryCodes.has(field.code)) return field.code;
+    const byLabel = field.label?.trim().toLowerCase();
+    return byLabel && frameworkCategoryCodes.has(byLabel) ? byLabel : undefined;
+  };
+
+  const kept = fields
+    .filter((f) => !isFrameworkDrivenField(f) || !!resolveCategoryCode(f))
+    .map((f) => {
+      if (!isFrameworkDrivenField(f)) return f;
+      const categoryCode = resolveCategoryCode(f)!;
+      // Stamp the resolved category back onto the field (when it only
+      // matched via label) so buildOptions()/buildCascadedOptions() — which
+      // only ever look at sourceCategory ?? code, not this function's own
+      // resolution — also find the framework's live terms for it.
+      const withSourceCategory = f.sourceCategory ? f : { ...f, sourceCategory: categoryCode };
+      // required: true — a framework-driven category field is always
+      // mandatory once the framework supplies it, at root and per-question
+      // alike (matches the synthesized fields below).
+      if (!highestIndexCode) return { ...withSourceCategory, required: true };
+      return {
+        ...withSourceCategory,
+        required: true,
+        inputType: categoryCode === highestIndexCode ? 'multiselect' : 'select',
+      };
+    });
 
   // buildOptions() already resolves a field's options from frameworkTerms
   // first (keyed by sourceCategory ?? code) — no range/enum needed here.
@@ -396,7 +460,7 @@ function adaptFieldsForFramework(
     dynamic.push({
       code,
       label: code.charAt(0).toUpperCase() + code.slice(1),
-      inputType: 'multiselect',
+      inputType: !highestIndexCode || code === highestIndexCode ? 'multiselect' : 'select',
       required: true,
       editable: true,
       visible: true,
@@ -415,10 +479,11 @@ function buildDefaultValues(
   fields: ICategoryField[],
   values: Record<string, unknown>,
   section?: string,
+  showAllSections?: boolean,
 ): Record<string, unknown> {
   const defaults: Record<string, unknown> = {};
   for (const f of fields) {
-    if (!f.visible || !fieldMatchesSection(f, section)) continue;
+    if (!f.visible || !fieldMatchesSection(f, section, showAllSections)) continue;
     const v = values[f.code];
     if (isMultiSelectField(f) || f.inputType === 'keywords') {
       defaults[f.code] = Array.isArray(v) ? v : v ? [String(v)] : [];
@@ -865,7 +930,9 @@ const SparkMetaForm: React.FC<SparkMetaFormProps> = ({
   onValidityChange,
   readOnly = false,
   section,
+  showAllSections = false,
   frameworkTerms,
+  categoryOrder,
   isRoot = false,
 }) => {
   const setContentFramework = useEditorStore((s) => s.setContentFramework);
@@ -898,14 +965,14 @@ const SparkMetaForm: React.FC<SparkMetaFormProps> = ({
   // (e.g. Industry/Domain/Skill for USF vs board/medium/gradeLevel/subject
   // for a K-12 framework like CBSE) — see adaptFieldsForFramework above.
   const adaptedFields = useMemo(
-    () => adaptFieldsForFramework(fields, frameworkTerms),
-    [fields, frameworkTerms],
+    () => adaptFieldsForFramework(fields, frameworkTerms, categoryOrder, isRoot),
+    [fields, frameworkTerms, categoryOrder, isRoot],
   );
 
   // Filter to only visible fields for this section
   // appIcon is handled by the card-header thumbnail, not the form.
   const visibleFields = adaptedFields.filter(
-    (f) => f.visible && f.inputType !== 'appIcon' && fieldMatchesSection(f, section),
+    (f) => f.visible && f.inputType !== 'appIcon' && fieldMatchesSection(f, section, showAllSections),
   );
 
   const {
@@ -916,7 +983,7 @@ const SparkMetaForm: React.FC<SparkMetaFormProps> = ({
     watch,
     setValue,
   } = useForm({
-    defaultValues: buildDefaultValues(adaptedFields, values, section),
+    defaultValues: buildDefaultValues(adaptedFields, values, section, showAllSections),
     mode: 'onChange',
   });
 
@@ -952,11 +1019,20 @@ const SparkMetaForm: React.FC<SparkMetaFormProps> = ({
   // frameworkTerms is included so the reset fires once terms arrive — the
   // select can only show a saved value after its option list is populated,
   // AND so switching frameworks re-syncs against the now-adapted field set.
+  // adaptedFields is a NEW array/object graph every render whenever a caller
+  // passes an inline-built `fields` prop (e.g. `questionFormConfig.map(...)`
+  // or `withLicenseOptions(...)`, both re-invoked on every parent render) —
+  // depending on it by reference reruns this effect every render even when
+  // its content is unchanged. reset()+trigger() then call onValidityChange,
+  // which can change parent state, causing the parent (and this unstable
+  // fields prop) to re-render again — an infinite render loop (React error
+  // #185). Depend on content instead, same as `values` just above.
+  const adaptedFieldsKey = JSON.stringify(adaptedFields);
   useEffect(() => {
-    reset(buildDefaultValues(adaptedFields, values, section));
+    reset(buildDefaultValues(adaptedFields, values, section, showAllSections));
     void trigger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(values), section, frameworkTerms, adaptedFields]);
+  }, [JSON.stringify(values), section, showAllSections, frameworkTerms, adaptedFieldsKey]);
 
   // Notify parent of validity changes
   useEffect(() => {

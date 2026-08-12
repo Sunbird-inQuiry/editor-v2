@@ -394,6 +394,8 @@
     "invalidEnterQuestion": "Saisissez d'abord la question",
     "invalidEnterTitle": "Saisissez le titre dans Détails",
     "invalidEnterMarks": "Saisissez les points dans Détails",
+    "invalidSelectFramework": "Sélectionnez un référentiel dans Détails",
+    "invalidLoadingFrameworks": "Chargement des référentiels…",
     "invalidFillDetails": "Remplissez tous les champs obligatoires dans Détails",
     "invalidFillOptions": "Remplissez toutes les options",
     "invalidMarkCorrect": "Marquez une option comme la bonne réponse",

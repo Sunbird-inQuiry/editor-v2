@@ -5,7 +5,15 @@ import { useTreeStore } from '../store/tree.store';
 import { getFramework } from '../api/framework';
 import type { IFramework, ITerm } from '../types/framework';
 
-export function useFramework() {
+/**
+ * @param overrideFrameworkId - Resolves categories against this framework
+ * instead of the root/live one, fully locally to the caller — e.g. a
+ * question that picked its own Framework in its Details form. Does not
+ * touch editor.store's contentFramework or affect any other caller; target
+ * frameworks still come from root (questions have no targetFWIds concept of
+ * their own). Omit for the existing root-level behaviour, unchanged.
+ */
+export function useFramework(overrideFrameworkId?: string) {
   const config = useEditorStore((s) => s.editorConfig);
   // Old editor precedence: the questionset's own framework/targetFWIds (read
   // via the hierarchy API) win over the host-supplied context — the host
@@ -21,7 +29,7 @@ export function useFramework() {
   // the content's own saved framework immediately, without needing a
   // save/reload round trip first — see editor.store.ts's contentFramework.
   const liveFramework = useEditorStore((s) => s.contentFramework);
-  const orgFrameworkId = liveFramework ?? frameworkIds[0] ?? '';
+  const orgFrameworkId = overrideFrameworkId || liveFramework || frameworkIds[0] || '';
 
   const orgQuery = useQuery<IFramework>({
     queryKey: ['framework', orgFrameworkId],
@@ -61,11 +69,40 @@ export function useFramework() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgQuery.data, targetKey]);
 
+  // Category codes ordered by the ORG framework's own `index` (ascending) —
+  // target frameworks only contribute extra term data, not this content's
+  // taxonomy depth. Missing indexes sort last so a malformed entry can't
+  // accidentally become "highest index" and unlock multiselect it shouldn't
+  // have. Consumers (SparkMetaForm's single-vs-multi-select rule) treat the
+  // last entry as the skill-equivalent leaf category.
+  const categoryOrder = useMemo<string[]>(
+    () => [...(orgQuery.data?.categories ?? [])]
+      .sort((a, b) => (a.index ?? Infinity) - (b.index ?? Infinity))
+      .map((c) => c.code),
+    [orgQuery.data],
+  );
+
   return {
     orgFramework: orgQuery.data,
     targetFrameworks: targetData,
     isLoading: orgQuery.isLoading,
     targetFrameworkIds: targetFWIds as string[],
     frameworkTerms,
+    categoryOrder,
   };
+}
+
+/**
+ * Same target-framework precedence useFramework() applies internally
+ * (rootMeta.targetFWIds wins over the host-supplied config) — extracted for
+ * plain, non-hook code that needs to resolve the same ids without
+ * subscribing to store changes (useSaveQuestion.ts, reading straight out of
+ * getState() at save time to sweep target frameworks' categories into the
+ * taxonomy payload, same as this hook's frameworkTerms merge does).
+ */
+export function resolveTargetFrameworkIds(): string[] {
+  const config = useEditorStore.getState().editorConfig;
+  const rootMeta = useTreeStore.getState().treeData[0]?.metadata as Record<string, unknown> | undefined;
+  return ((rootMeta?.targetFWIds as string[] | undefined)
+    ?? config?.context?.targetFWIds ?? config?.config?.targetFWIds ?? []) as string[];
 }

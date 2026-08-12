@@ -8,8 +8,11 @@ import { useEditorStore } from '../../store/editor.store';
 import { getUserId, isEditingAllowed } from '../../utils/context';
 import { labelFrom } from '../../utils/labels';
 import { useLabels } from '../../hooks/useLabels';
-import SparkMetaForm from '../SparkMetaForm/SparkMetaForm';
+import SparkMetaForm, { SingleSelectDropdown } from '../SparkMetaForm/SparkMetaForm';
+import formStyles from '../SparkMetaForm/SparkMetaForm.module.scss';
 import { useFramework } from '../../hooks/useFramework';
+import { searchFrameworks } from '../../api/framework';
+import { useQuery } from '@tanstack/react-query';
 import ImagePickerModal from '../shared/ImagePickerModal';
 import { lazy, Suspense } from 'react';
 import { useTreeStore } from '../../store/tree.store';
@@ -326,7 +329,6 @@ export default function QuestionEditor({ editorMode, onBack }: QuestionEditorPro
   const activeNodeMeta = useTreeStore((st) => st.activeNodeMeta);
   const updateNode = useTreeStore((st) => st.updateNode);
   const detailNodeId = useTreeStore((st) => st.selectedNodeId);
-  const { frameworkTerms } = useFramework();
   const handleDetailChange = (code: string, value: unknown) => {
     if (detailNodeId) updateNode(detailNodeId, { [code]: value });
   };
@@ -334,9 +336,42 @@ export default function QuestionEditor({ editorMode, onBack }: QuestionEditorPro
   // the question set — each question leaves them unset until chosen explicitly.
   const detailValues = (activeNodeMeta as Record<string, unknown>) ?? {};
 
+  // Standalone Framework picker for this question — mirrors the root's
+  // Audience & Curriculum tab (ContextualEditor.tsx) but stays fully local
+  // to this one question: it writes only to the question's own metadata and
+  // resolves this question's OWN category dropdowns (board/medium/
+  // gradeLevel/subject, or an Industry/Domain/Skill framework's own
+  // categories) from that value, never editor.store's global
+  // contentFramework. Falls back to the root/live framework (useFramework's
+  // existing behaviour) until the question picks its own.
+  const questionOwnFramework = detailValues.framework as string | undefined;
+  const { frameworkTerms } = useFramework(questionOwnFramework);
+  const orgFWType = useEditorStore((st) => st.categoryMeta?.frameworkMetadata?.orgFWType);
+  const frameworkListQuery = useQuery({
+    queryKey: ['framework-search', (orgFWType ?? []).slice().sort().join(',')],
+    queryFn: () => searchFrameworks({ type: orgFWType, systemDefault: 'Yes' }),
+    staleTime: 10 * 60 * 1000,
+  });
+  const channelFrameworks = frameworkListQuery.data ?? [];
+  const handleQuestionFrameworkChange = (value: string) => {
+    handleDetailChange('framework', value);
+  };
+
+  // The Framework picker renders between Title and the rest of the Details
+  // fields — split questionFormConfig around the 'name' (Title) field so it
+  // stays in that spot regardless of the category definition's own field
+  // order. Falls back to rendering nothing before Framework if the config
+  // has no 'name' field.
+  const titleField = questionFormConfig?.find((f) => f.code === 'name');
+  const restQuestionFields = (questionFormConfig ?? []).filter((f) => f.code !== 'name');
+
   // Required-field validity of the Details (childMetadata) form below —
-  // gates Save so questions can't reach review with missing metadata.
-  const [detailsValid, setDetailsValid] = useState(true);
+  // gates Save so questions can't reach review with missing metadata. Split
+  // across the Title field and the rest since they're now two separate
+  // SparkMetaForm instances (see the Framework picker split above).
+  const [titleFieldValid, setTitleFieldValid] = useState(true);
+  const [restFieldsValid, setRestFieldsValid] = useState(true);
+  const detailsValid = titleFieldValid && restFieldsValid;
 
   const invalidReason = (() => {
     const qBody = anyOf(i18nText.questionBody, questionBody);
@@ -347,6 +382,18 @@ export default function QuestionEditor({ editorMode, onBack }: QuestionEditorPro
     }
     if ((type === 'mcq' || type === 'sa') && !(Number(activeNodeMeta?.maxScore) > 0)) {
       return L('ui.invalidEnterMarks', 'Enter the marks in Details');
+    }
+    // channelFrameworks is [] until frameworkListQuery resolves — without
+    // this, a question saved during that window would skip the required-
+    // framework check entirely just because the list hadn't arrived yet.
+    // isLoading (not isFetching) so this only covers the one-time-per-
+    // session gap before the first resolution, not later background
+    // refetches of already-known data.
+    if (frameworkListQuery.isLoading) {
+      return L('ui.invalidLoadingFrameworks', 'Loading frameworks…');
+    }
+    if (channelFrameworks.length > 0 && !questionOwnFramework) {
+      return L('ui.invalidSelectFramework', 'Select a framework in Details');
     }
     if (!detailsValid) return L('ui.invalidFillDetails', 'Fill all required fields in Details');
     switch (type) {
@@ -479,11 +526,41 @@ export default function QuestionEditor({ editorMode, onBack }: QuestionEditorPro
           {questionFormConfig && questionFormConfig.length > 0 && (
             <div className="ce-ed-sec">
               <div className="ce-ed-lbl">{L('ui.details', 'Details')}</div>
+              {(titleField || channelFrameworks.length > 0) && (
+                <div className={formStyles.pairRow}>
+                  {titleField && (
+                    <SparkMetaForm
+                      fields={[{ ...titleField, editable: true }]}
+                      values={detailValues}
+                      onChange={handleDetailChange}
+                      onValidityChange={setTitleFieldValid}
+                      readOnly={isReadOnly}
+                      frameworkTerms={frameworkTerms}
+                    />
+                  )}
+                  {channelFrameworks.length > 0 && (
+                    <div className={formStyles.field}>
+                      <label htmlFor="question-framework-picker" className={formStyles.label}>
+                        {L('ui.framework', 'Framework')}
+                        <span className={formStyles.required} aria-label="required"> *</span>
+                      </label>
+                      <SingleSelectDropdown
+                        fieldId="question-framework-picker"
+                        value={String(questionOwnFramework ?? '')}
+                        options={channelFrameworks.map((fw) => ({ value: fw.identifier, label: fw.name }))}
+                        disabled={isReadOnly}
+                        placeholder={L('ui.selectFramework', 'Select framework')}
+                        onChange={handleQuestionFrameworkChange}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               <SparkMetaForm
-                fields={questionFormConfig.map((f) => ({ ...f, editable: true }))}
+                fields={restQuestionFields.map((f) => ({ ...f, editable: true }))}
                 values={detailValues}
                 onChange={handleDetailChange}
-                onValidityChange={setDetailsValid}
+                onValidityChange={setRestFieldsValid}
                 readOnly={isReadOnly}
                 frameworkTerms={frameworkTerms}
               />

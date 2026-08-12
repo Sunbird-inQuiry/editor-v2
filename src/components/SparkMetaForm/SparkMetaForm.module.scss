@@ -57,6 +57,25 @@
 }
 
 // ---------------------------------------------------------------------------
+// Pair row — sits a raw .field (e.g. a standalone picker rendered outside
+// SparkMetaForm) beside a single-field SparkMetaForm instance, half-width
+// each, same row. The nested <form> normally reserves its OWN 2-column
+// grid (so a lone field only fills column 1 of it); display:contents drops
+// that inner grid box so the field joins THIS row's columns instead.
+// ---------------------------------------------------------------------------
+
+.pairRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px 28px;
+  margin-bottom: 22px;
+
+  > form {
+    display: contents;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Field — half-width by default, full-width for multi-line fields
 // ---------------------------------------------------------------------------
 
