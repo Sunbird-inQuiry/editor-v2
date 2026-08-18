@@ -47,7 +47,16 @@ export function useValidateAndSave() {
       isRoot: boolean,
       sectionName?: string,
     ) => {
-      const adapted = adaptFieldsForFramework(fields ?? [], frameworkTerms, categoryOrder, isRoot);
+      // Framework-driven category fields (board/medium/gradeLevel/subject,
+      // or a framework's own Industry/Domain/Skill) only ever have a
+      // rendered home on the ROOT's Audience & Curriculum tab —
+      // ContextualEditor.tsx's SECTION_TABS has no such tab, so a section
+      // can never actually fill them in. Only adapt (and require) for
+      // root; a section's own required fields come straight from its raw
+      // unitFormConfig (Details/Behaviour only).
+      const adapted = isRoot
+        ? adaptFieldsForFramework(fields ?? [], frameworkTerms, categoryOrder, isRoot)
+        : (fields ?? []);
       for (const f of findMissingRequiredFields(adapted, meta)) {
         const tab = (f.section && TAB_LABELS[f.section]) || detailsLabel;
         const group = sectionName ? `${sectionName} — ${tab}` : tab;
