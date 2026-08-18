@@ -345,7 +345,12 @@ export default function QuestionEditor({ editorMode, onBack }: QuestionEditorPro
   // contentFramework. Falls back to the root/live framework (useFramework's
   // existing behaviour) until the question picks its own.
   const questionOwnFramework = detailValues.framework as string | undefined;
-  const { frameworkTerms } = useFramework(questionOwnFramework);
+  // categoryOrder is derived purely from the ORG framework's own categories
+  // (useFramework.ts) — passing it through here means board/medium/
+  // gradeLevel/subject get dropped/kept (and their required-ness decided)
+  // based on THIS question's selected framework alone, never a target
+  // framework's categories (see adaptFieldsForFramework in SparkMetaForm).
+  const { frameworkTerms, categoryOrder } = useFramework(questionOwnFramework);
   const orgFWType = useEditorStore((st) => st.categoryMeta?.frameworkMetadata?.orgFWType);
   const frameworkListQuery = useQuery({
     queryKey: ['framework-search', (orgFWType ?? []).slice().sort().join(',')],
@@ -535,7 +540,13 @@ export default function QuestionEditor({ editorMode, onBack }: QuestionEditorPro
                       onChange={handleDetailChange}
                       onValidityChange={setTitleFieldValid}
                       readOnly={isReadOnly}
-                      frameworkTerms={frameworkTerms}
+                      // No frameworkTerms/categoryOrder here — 'name' is a
+                      // plain text field, never framework-driven. Passing
+                      // frameworkTerms would make adaptFieldsForFramework's
+                      // dynamic-category synthesis run for THIS instance
+                      // too, duplicating Industry/Domain/Skill (etc.) — the
+                      // restQuestionFields form below is the one place that
+                      // should ever render them.
                     />
                   )}
                   {channelFrameworks.length > 0 && (
@@ -563,6 +574,8 @@ export default function QuestionEditor({ editorMode, onBack }: QuestionEditorPro
                 onValidityChange={setRestFieldsValid}
                 readOnly={isReadOnly}
                 frameworkTerms={frameworkTerms}
+                categoryOrder={categoryOrder}
+                showAllSections
               />
             </div>
           )}

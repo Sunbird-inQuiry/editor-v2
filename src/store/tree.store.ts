@@ -398,6 +398,15 @@ export const useTreeStore = create<TreeState>((set, get) => ({
         selectedNodeId: stillExists ? state.selectedNodeId : fallbackId,
       };
     });
+    // The live framework override (editor.store's contentFramework) is a
+    // pick that hasn't been saved yet — the failed save never persisted it,
+    // so it must not survive the revert either. Without this, the Framework
+    // field visibly reverts to the last-saved value (e.g. TPD) while
+    // category-term fields (useFramework's contentFramework-first
+    // precedence) keep resolving against the abandoned pick (e.g. USF) —
+    // a display/behavior mismatch, and the same stale override a new
+    // question's own framework fallback would inherit too.
+    useEditorStore.getState().setContentFramework(null);
     // Re-derive breadcrumb/activeNodeMeta/question-store sync for whatever
     // ended up selected — selectNode already handles the "unchanged" case.
     const id = get().selectedNodeId;

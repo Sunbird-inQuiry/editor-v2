@@ -3,10 +3,35 @@ import { useTreeStore } from '../store/tree.store';
 import { useEditorStore } from '../store/editor.store';
 import { updateHierarchy } from '../api/hierarchy';
 import type { INode } from '../types/editor';
+import type { IFramework } from '../types/framework';
 import { getContentId, getUserId } from '../utils/context';
 import { notifyError, apiErrorMessage } from '../utils/notify';
 import { label } from '../utils/labels';
+import { queryClient } from '../queryClient';
+import { allKnownFrameworkCategoryCodes } from './useFramework';
 import { v4 as genUuid } from 'uuid';
+
+// ---------------------------------------------------------------------------
+// Framework category codes — filter the root's own category-term fields
+// (board/medium/gradeLevel/subject, or a framework's own Industry/Domain/
+// Skill etc.) down to whatever the CURRENTLY selected framework actually
+// defines. Without this, a value left over from a framework the user has
+// since switched away from (e.g. CBSE's board/medium/gradeLevel/subject,
+// still sitting in treeCache/node.metadata after picking USF) gets resent
+// alongside the new framework's own fields — the backend validates every
+// category against the content's declared framework and rejects the whole
+// hierarchy update ("board range data is empty from the given framework").
+// ---------------------------------------------------------------------------
+
+/** Category codes the given framework itself defines — read straight out of
+ *  the query cache useFramework()/ContextualEditor.tsx already populated
+ *  (getFramework is fetched the moment a framework is selected/loaded); no
+ *  hook subscription needed since this only runs at save time. */
+function categoryCodesForFramework(frameworkId: string | undefined): Set<string> {
+  if (!frameworkId) return new Set();
+  const categories = queryClient.getQueryData<IFramework>(['framework', frameworkId])?.categories ?? [];
+  return new Set(categories.map((c) => c.code));
+}
 
 
 function buildSavePayload(
@@ -158,6 +183,40 @@ function buildSavePayload(
   // from question reads / built by useSaveQuestion), so sum locally.
   const rootId = nodes[0]?.identifier;
   const rootEntry = rootId ? (nodesModified[rootId] as { metadata?: Record<string, unknown> } | undefined) : undefined;
+
+  // Clear any category-term field left over from a framework the user has
+  // since switched away from — only ever touches codes known to be
+  // framework-bound (allKnownFrameworkCategoryCodes), so unrelated fields
+  // (name, description, license, …) are untouched. `rootEntry.metadata`
+  // won't have `framework` at all unless it was touched this session
+  // (cleanMetadata only spreads cacheEdits for an existing root) — fall
+  // back to the persisted value so an unrelated save doesn't wipe fields
+  // that still validly belong to the content's already-saved framework.
+  //
+  // This is a PATCH against an EXISTING node — the backend merges the sent
+  // fields into the already-stored document before validating, so simply
+  // omitting a stale field (e.g. board="CBSE" from before the switch)
+  // leaves the OLD value in place server-side and validation still rejects
+  // it against the new framework. Send an explicit empty value instead, so
+  // the merge actually overwrites/clears it.
+  if (rootEntry?.metadata) {
+    const effectiveFramework = (rootEntry.metadata.framework as string | undefined)
+      ?? (nodes[0]?.metadata?.framework as string | undefined);
+    if (effectiveFramework) {
+      const currentCodes = categoryCodesForFramework(effectiveFramework);
+      for (const code of allKnownFrameworkCategoryCodes()) {
+        if (!currentCodes.has(code)) {
+          // Empirically board=[] clears it (no longer flagged); board=''
+          // does NOT — the backend still rejects an empty *string* for it
+          // ("board range data is empty from the given framework") even
+          // though medium/gradeLevel/subject clear fine as []. Always use
+          // [] here rather than guessing scalar-vs-array per field.
+          rootEntry.metadata[code] = [];
+        }
+      }
+    }
+  }
+
   if (rootEntry?.metadata) {
     let total = 0;
     const sumScores = (node: INode) => {

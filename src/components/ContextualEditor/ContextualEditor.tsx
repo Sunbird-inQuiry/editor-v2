@@ -10,7 +10,7 @@ import { useQuestionStore } from '../../store/question.store';
 import { useUiStore } from '../../store/ui.store';
 import { isEditingAllowed } from '../../utils/context';
 import { telemetryImpression, setTelemetryPageId } from '../../utils/telemetry';
-import { useFramework } from '../../hooks/useFramework';
+import { useFramework, allKnownFrameworkCategoryCodes } from '../../hooks/useFramework';
 import { useQuestionRead } from '../../hooks/useQuestionRead';
 import { useLabels } from '../../hooks/useLabels';
 import { searchFrameworks } from '../../api/framework';
@@ -92,9 +92,14 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
   // question's OWN framework (picked in QuestionEditor.tsx's Details
   // section), not root's — fully local, same as the editable form; falls
   // back to root/live (frameworkTerms above) until the question has one.
-  const questionFrameworkTerms = useFramework(
+  const questionFramework = useFramework(
     isCurrentNodeQuestion ? (activeNodeMeta as Record<string, unknown> | undefined)?.framework as string | undefined : undefined,
-  ).frameworkTerms;
+  );
+  const questionFrameworkTerms = questionFramework.frameworkTerms;
+  // Org-only category codes for that question's own framework — same fix as
+  // the editable Details form: a target framework's categories must never
+  // keep a field required here either, so this read-only view matches.
+  const questionCategoryOrder = questionFramework.categoryOrder;
   const breadcrumb = useTreeStore((s) => s.breadcrumb);
   const updateNode = useTreeStore((s) => s.updateNode);
   const selectNode = useTreeStore((s) => s.selectNode);
@@ -172,9 +177,23 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
   });
   const channelFrameworks = frameworkListQuery.data ?? [];
   const handleFrameworkChange = useCallback((value: string) => {
+    // Clear every category-term field ever seen this session — not just the
+    // outgoing framework's own codes. Two frameworks can share the same
+    // category code with different terms (e.g. both TPD and USF using
+    // industry/domain/skill); clearing only the outgoing framework's codes
+    // left a shared code's VALUE sitting in state, so it silently reappeared
+    // "pre-filled" the instant a framework with the same code was picked,
+    // even though the user never entered it under the new framework.
+    // useSaveHierarchy.ts strips the same thing defensively at save time,
+    // but the UI/local state should reflect the switch right away too.
+    if (selectedNodeId) {
+      const clearPatch: Record<string, unknown> = {};
+      for (const code of allKnownFrameworkCategoryCodes()) clearPatch[code] = [];
+      updateNode(selectedNodeId, clearPatch);
+    }
     setContentFramework(value || null);
     handleFormChange('framework', value);
-  }, [setContentFramework, handleFormChange]);
+  }, [selectedNodeId, updateNode, setContentFramework, handleFormChange]);
 
   const handleFormValidityChange = useCallback((isValid: boolean) => {
     onToolbarEvent({ action: 'onFormStatusChange', data: { isValid } });
@@ -427,6 +446,8 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                       onValidityChange={handleFormValidityChange}
                       readOnly
                       frameworkTerms={questionFrameworkTerms}
+                      categoryOrder={questionCategoryOrder}
+                      showAllSections
                     />
                   </div>
                 )}

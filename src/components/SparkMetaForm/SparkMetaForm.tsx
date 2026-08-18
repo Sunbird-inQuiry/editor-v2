@@ -387,7 +387,12 @@ function isFrameworkDrivenField(field: ICategoryField): boolean {
   return !hasFixedOptions;
 }
 
-function adaptFieldsForFramework(
+// Exported so non-rendering callers (useValidateAndSave.ts's missing-
+// required-fields check) can apply the exact same framework-conditional
+// keep/drop/required rule this component's own render uses, instead of
+// re-deriving "required" from the raw, framework-unaware category-
+// definition fields directly.
+export function adaptFieldsForFramework(
   fields: ICategoryField[],
   frameworkTerms: Map<string, FrameworkTerm[]> | undefined,
   categoryOrder: string[] | undefined,
@@ -397,7 +402,19 @@ function adaptFieldsForFramework(
   // leave the static field list exactly as the category-definition API gave it.
   if (!frameworkTerms || frameworkTerms.size === 0) return fields;
 
-  const frameworkCategoryCodes = new Set(frameworkTerms.keys());
+  // frameworkTerms merges the ORG framework's categories with every TARGET
+  // framework's (useFramework.ts) — fine for populating a kept field's term
+  // OPTIONS, but wrong here: it means a target framework still carrying
+  // board/medium/gradeLevel keeps those fields required even after the org
+  // framework is switched to one with its own category set (e.g. USF's
+  // Industry/Domain/Skill), since their codes never leave the merged map.
+  // categoryOrder is ORG-only (useFramework.ts derives it solely from
+  // orgQuery.data) — use it as the keep/drop authority when available (root
+  // forms); fall back to the merged map for section/question forms, where
+  // categoryOrder isn't wired up.
+  const frameworkCategoryCodes = new Set(
+    categoryOrder?.length ? categoryOrder : frameworkTerms.keys(),
+  );
   // Only the highest-index (skill-equivalent leaf) category may hold more
   // than one term — Industry/Domain, Board/Medium/Grade etc. narrow down a
   // single path through the taxonomy. Root-only: a question's own category

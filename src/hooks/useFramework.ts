@@ -3,6 +3,7 @@ import { useQuery, useQueries } from '@tanstack/react-query';
 import { useEditorStore } from '../store/editor.store';
 import { useTreeStore } from '../store/tree.store';
 import { getFramework } from '../api/framework';
+import { queryClient } from '../queryClient';
 import type { IFramework, ITerm } from '../types/framework';
 
 /**
@@ -105,4 +106,27 @@ export function resolveTargetFrameworkIds(): string[] {
   const rootMeta = useTreeStore.getState().treeData[0]?.metadata as Record<string, unknown> | undefined;
   return ((rootMeta?.targetFWIds as string[] | undefined)
     ?? config?.context?.targetFWIds ?? config?.config?.targetFWIds ?? []) as string[];
+}
+
+/**
+ * Every category code seen across ANY framework fetched this session (the
+ * query cache) — the full universe of fields a framework switch could ever
+ * have populated, not just the one framework being switched away from.
+ *
+ * Two frameworks can define the SAME category code with different terms
+ * (e.g. both TPD and USF using `industry`/`domain`/`skill`) — clearing only
+ * the outgoing framework's own codes leaves a shared code's VALUE sitting
+ * in state, so it silently reappears pre-filled the moment a framework that
+ * also has that code is selected, even though the user never entered it
+ * under the new framework. Clearing this entire known universe on every
+ * framework switch (ContextualEditor.tsx's handleFrameworkChange) — not
+ * just the outgoing framework's codes — guarantees no such carryover.
+ */
+export function allKnownFrameworkCategoryCodes(): Set<string> {
+  const codes = new Set<string>();
+  for (const query of queryClient.getQueryCache().findAll({ queryKey: ['framework'] })) {
+    const data = query.state.data as IFramework | undefined;
+    for (const c of data?.categories ?? []) codes.add(c.code);
+  }
+  return codes;
 }
