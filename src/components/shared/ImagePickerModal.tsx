@@ -292,7 +292,7 @@ function UploadTab({ mediaType, channel, createdBy, presignedHeaders, cloudStora
       {/* Copyright & License — informational only */}
       <div style={{
         borderTop: '1px solid var(--sb-border)', paddingTop: 12,
-        fontFamily: 'var(--sb-font, "Plus Jakarta Sans", system-ui, sans-serif)',
+        fontFamily: 'var(--sb-font, "Rubik", system-ui, sans-serif)',
       }}>
         <p style={{ fontWeight: 700, fontSize: '12px', color: '#1a1a1a', margin: '0 0 5px', lineHeight: 1.4 }}>
           Copyright &amp; License

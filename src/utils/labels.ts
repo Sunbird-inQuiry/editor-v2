@@ -62,16 +62,30 @@ export function setUiLanguage(lang: string, hostLabels?: Record<string, string>)
   return merged;
 }
 
-/** Look up "section.key" with a fallback (old configService.labelConfig). */
+// Walks every segment of a dot path (e.g. "messages.error.selectSection" is
+// 3 levels deep, not 2) — a 2-segment destructure previously discarded
+// anything past the second part, so it resolved to the section object
+// itself instead of the string, silently falling back every time for any
+// messages.error.*/messages.success.* key (old numeric ones included).
+function resolvePath(config: LabelConfig, path: string): unknown {
+  const parts = path.split('.');
+  let value: unknown = config;
+  for (const part of parts) {
+    if (typeof value !== 'object' || value === null) return undefined;
+    value = (value as Record<string, unknown>)[part];
+  }
+  return value;
+}
+
+/** Look up a dot path (e.g. "ui.key", "messages.error.key") with a fallback
+ *  (old configService.labelConfig). */
 export function label(path: string, fallback = ''): string {
-  const [section, key] = path.split('.');
-  const value = section && key ? current[section]?.[key] : undefined;
+  const value = resolvePath(current, path);
   return typeof value === 'string' && value ? value : fallback;
 }
 
 /** Same lookup against an explicit config (for store-driven re-renders). */
 export function labelFrom(config: LabelConfig, path: string, fallback = ''): string {
-  const [section, key] = path.split('.');
-  const value = section && key ? config[section]?.[key] : undefined;
+  const value = resolvePath(config, path);
   return typeof value === 'string' && value ? value : fallback;
 }

@@ -12,7 +12,7 @@
   gap: 8px;
   padding: 16px 8px;
   border: 1.5px solid var(--color-border, #e2e8f0);
-  border-radius: 8px;
+  border-radius: var(--sbx-radius-lg);
   background: var(--color-surface, #fff);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;

@@ -21,6 +21,16 @@ interface TreeState {
     parentId: string,
     item: { identifier: string; name?: string; questionType?: string } & Record<string, unknown>,
   ) => string;
+  /** Non-mutating pre-check for addExistingQuestion — lets a caller (e.g.
+   *  the Library sidebar) validate BEFORE an async attach API call, so
+   *  nothing is inserted into the tree until the backend actually confirms
+   *  it, instead of inserting optimistically and rolling back on failure
+   *  (which flashes the question into the outline for a moment). */
+  canAddExistingQuestion: (parentId: string, identifier: string) => 'ok' | 'exists' | 'maxDepth';
+  /** Depth-only pre-check for content that will get a brand-new identifier
+   *  (e.g. the Library sidebar's "Copy") — canAddExistingQuestion's "exists"
+   *  check doesn't apply since a copy is never already in the tree. */
+  isMaxDepth: (parentId: string) => boolean;
   deleteNode: (id: string) => void;
   reorderChildren: (parentId: string, fromIndex: number, toIndex: number) => void;
   markDirty: () => void;
@@ -274,15 +284,26 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     return newId;
   },
 
+  canAddExistingQuestion: (parentId, identifier) => {
+    const { treeData } = get();
+    if (bfsFind(treeData, identifier)) return 'exists';
+    const maxDepth = useEditorStore.getState().editorConfig?.config?.maxDepth ?? 3;
+    if (getNodeDepth(treeData, parentId) >= maxDepth - 1) return 'maxDepth';
+    return 'ok';
+  },
+
+  isMaxDepth: (parentId) => {
+    const maxDepth = useEditorStore.getState().editorConfig?.config?.maxDepth ?? 3;
+    return getNodeDepth(get().treeData, parentId) >= maxDepth - 1;
+  },
+
   addExistingQuestion: (parentId, item) => {
-    const state = get();
     // Old editor LINKS an existing Live question into the hierarchy — it is
     // NOT re-created: no treeCache entry, no isNew; save only lists it in
     // the section's children.
-    if (bfsFind(state.treeData, item.identifier)) return 'exists';
-
-    const maxDepth = useEditorStore.getState().editorConfig?.config?.maxDepth ?? 3;
-    if (getNodeDepth(state.treeData, parentId) >= maxDepth - 1) return '';
+    const check = get().canAddExistingQuestion(parentId, item.identifier);
+    if (check === 'exists') return 'exists';
+    if (check === 'maxDepth') return '';
 
     const node: INode = {
       id: item.identifier,
@@ -377,6 +398,15 @@ export const useTreeStore = create<TreeState>((set, get) => ({
         selectedNodeId: stillExists ? state.selectedNodeId : fallbackId,
       };
     });
+    // The live framework override (editor.store's contentFramework) is a
+    // pick that hasn't been saved yet — the failed save never persisted it,
+    // so it must not survive the revert either. Without this, the Framework
+    // field visibly reverts to the last-saved value (e.g. TPD) while
+    // category-term fields (useFramework's contentFramework-first
+    // precedence) keep resolving against the abandoned pick (e.g. USF) —
+    // a display/behavior mismatch, and the same stale override a new
+    // question's own framework fallback would inherit too.
+    useEditorStore.getState().setContentFramework(null);
     // Re-derive breadcrumb/activeNodeMeta/question-store sync for whatever
     // ended up selected — selectNode already handles the "unchanged" case.
     const id = get().selectedNodeId;

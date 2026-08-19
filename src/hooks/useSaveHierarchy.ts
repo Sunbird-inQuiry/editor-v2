@@ -3,10 +3,35 @@ import { useTreeStore } from '../store/tree.store';
 import { useEditorStore } from '../store/editor.store';
 import { updateHierarchy } from '../api/hierarchy';
 import type { INode } from '../types/editor';
+import type { IFramework } from '../types/framework';
 import { getContentId, getUserId } from '../utils/context';
 import { notifyError, apiErrorMessage } from '../utils/notify';
 import { label } from '../utils/labels';
+import { queryClient } from '../queryClient';
+import { allKnownFrameworkCategoryCodes } from './useFramework';
 import { v4 as genUuid } from 'uuid';
+
+// ---------------------------------------------------------------------------
+// Framework category codes — filter the root's own category-term fields
+// (board/medium/gradeLevel/subject, or a framework's own Industry/Domain/
+// Skill etc.) down to whatever the CURRENTLY selected framework actually
+// defines. Without this, a value left over from a framework the user has
+// since switched away from (e.g. CBSE's board/medium/gradeLevel/subject,
+// still sitting in treeCache/node.metadata after picking USF) gets resent
+// alongside the new framework's own fields — the backend validates every
+// category against the content's declared framework and rejects the whole
+// hierarchy update ("board range data is empty from the given framework").
+// ---------------------------------------------------------------------------
+
+/** Category codes the given framework itself defines — read straight out of
+ *  the query cache useFramework()/ContextualEditor.tsx already populated
+ *  (getFramework is fetched the moment a framework is selected/loaded); no
+ *  hook subscription needed since this only runs at save time. */
+function categoryCodesForFramework(frameworkId: string | undefined): Set<string> {
+  if (!frameworkId) return new Set();
+  const categories = queryClient.getQueryData<IFramework>(['framework', frameworkId])?.categories ?? [];
+  return new Set(categories.map((c) => c.code));
+}
 
 
 function buildSavePayload(
@@ -24,7 +49,9 @@ function buildSavePayload(
     'id', 'isFolder', 'isQuestion', 'children', 'parent', 'isNew', 'breadcrumb', 'title', 'metadata', 'questionType', 'objectType',
     // System/read-only fields hydrated from question/v2/read — the backend
     // rejects index/depth and manages the rest itself; old editor never sends them.
-    'index', 'depth', 'status', 'versionKey', 'createdOn', 'lastUpdatedOn', 'lastStatusChangedOn','graphId'
+    'index', 'depth', 'status', 'versionKey', 'createdOn', 'lastUpdatedOn', 'lastStatusChangedOn','graphId',
+    // Standalone-question bookkeeping (useSaveQuestion) — never a hierarchy field.
+    'previousSelectedNodeId',
   ]);
   const ARRAY_FIELDS  = new Set(['audience', 'medium', 'gradeLevel', 'subject', 'keywords', 'language', 'topic']);
   const NUMBER_FIELDS = new Set(['copyrightYear', 'maxScore', 'expectedDuration', 'maxAttempts']);
@@ -66,6 +93,14 @@ function buildSavePayload(
     // saving). Exclude it from nodesModified and from hierarchy children so the
     // hierarchy API only receives fully-formed question metadata.
     if (isLeaf && identifier.startsWith('temp-')) {
+      return;
+    }
+
+    // Standalone (visibility: "Default") questions are created/updated via
+    // the question API directly (useSaveQuestion), never through hierarchy
+    // update — only their id in the parent's `children` array matters here.
+    const visibility = (cached?.visibility ?? node.metadata?.visibility) as string | undefined;
+    if (isLeaf && visibility === 'Default') {
       return;
     }
 
@@ -148,6 +183,22 @@ function buildSavePayload(
   // from question reads / built by useSaveQuestion), so sum locally.
   const rootId = nodes[0]?.identifier;
   const rootEntry = rootId ? (nodesModified[rootId] as { metadata?: Record<string, unknown> } | undefined) : undefined;
+
+  if (rootEntry?.metadata) {
+    const effectiveFramework = (rootEntry.metadata.framework as string | undefined)
+      ?? (nodes[0]?.metadata?.framework as string | undefined);
+    const frameworkDataReady = !!effectiveFramework
+      && queryClient.getQueryState(['framework', effectiveFramework])?.status === 'success';
+    if (effectiveFramework && frameworkDataReady) {
+      const currentCodes = categoryCodesForFramework(effectiveFramework);
+      for (const code of allKnownFrameworkCategoryCodes()) {
+        if (!currentCodes.has(code)) {
+          rootEntry.metadata[code] = [];
+        }
+      }
+    }
+  }
+
   if (rootEntry?.metadata) {
     let total = 0;
     const sumScores = (node: INode) => {
@@ -238,7 +289,7 @@ export function useSaveHierarchy() {
       return true;
     } catch (e) {
       console.error('[useSaveHierarchy] save failed:', e);
-      notifyError(apiErrorMessage(e, label('messages.error.001', 'Failed to save. Please try again.')));
+      notifyError(apiErrorMessage(e, label('messages.error.001', 'Failed to save. Please try again.')), e);
       // nodesModified/hierarchy are rejected as a single transaction — none
       // of the pending nodes since the last successful save actually exist
       // on the backend. Discard them instead of leaving them in the tree

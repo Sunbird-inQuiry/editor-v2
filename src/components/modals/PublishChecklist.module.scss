@@ -41,7 +41,7 @@
   cursor: pointer;
   width: 100%;
   padding: var(--sbx-space-3) var(--sbx-space-4);
-  border-radius: 14px;
+  border-radius: var(--sbx-radius-2xl);
   border: 1.5px solid var(--sb-border);
   background-color: #fff;
   transition:

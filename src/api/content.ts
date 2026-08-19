@@ -14,6 +14,10 @@ export async function compositeSearch(params: {
   const baseFilters: Record<string, unknown> = {
     status: ['Live'],
     objectType: ['Question'],
+    // Only "Default"-visibility questions are standalone, reusable objects —
+    // "Parent"-visibility questions are bound to the questionset that
+    // created them and cannot be attached anywhere else (see plan.md).
+    visibility: ['Default'],
     ...(params.filters ?? {}),
   };
   if (params.channel) baseFilters['channel'] = params.channel;
@@ -28,6 +32,7 @@ export async function compositeSearch(params: {
       fields: params.fields ?? [
         'identifier', 'name', 'mimeType', 'contentType', 'primaryCategory',
         'appIcon', 'channel', 'questionType', 'difficultyLevel', 'bloomsLevel',
+        'visibility', 'subject', 'gradeLevel',
       ],
     },
   });

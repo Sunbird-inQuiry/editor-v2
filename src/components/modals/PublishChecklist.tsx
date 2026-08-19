@@ -4,6 +4,7 @@ import Button from '../shared/Button';
 import { useEditorStore } from '../../store/editor.store';
 import type { ICategoryField } from '../../api/categoryDefinition';
 import { useLabels } from '../../hooks/useLabels';
+import { telemetryInteract } from '../../utils/telemetry';
 import styles from './PublishChecklist.module.scss';
 
 // -----------------------------------------------------------------------------
@@ -51,12 +52,29 @@ const PublishChecklist: React.FC<PublishChecklistProps> = ({
     setChecked((prev) => ({ ...prev, [code]: !prev[code] }));
   };
 
+  // Old editor parity (publish-checklist.component.html): 'no's dialog_id
+  // really is 'add_review_comments', not 'publish_collection' — replicated
+  // as-is (a likely old-editor copy-paste quirk, not "fixed" here).
   const footer = (
     <>
-      <Button variant="ghost" onClick={onCancel}>
+      <Button
+        variant="ghost"
+        onClick={() => {
+          telemetryInteract('no', { subtype: 'cancel', extra: { key: 'dialog_id', value: 'add_review_comments' } });
+          onCancel();
+        }}
+      >
         {L('button_labels.cancel_btn_label', 'Cancel')}
       </Button>
-      <Button variant="primary" disabled={!allChecked} onClick={onConfirm}>
+      {/* 'yes' telemetry fires from the caller (Topbar's handlePublishConfirm,
+          via emit('publish', ..., {id:'yes',...})) — not here — because
+          onConfirm reaches SplitEditorShell's blanket per-action INTERACT;
+          calling telemetryInteract in both places would double-fire. */}
+      <Button
+        variant="primary"
+        disabled={!allChecked}
+        onClick={onConfirm}
+      >
         {L('button_labels.publish_collection_btn_label', 'Publish')}
       </Button>
     </>

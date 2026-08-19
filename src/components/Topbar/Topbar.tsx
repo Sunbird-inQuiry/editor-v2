@@ -9,6 +9,7 @@ import { PublishChecklist } from '../modals/PublishChecklist';
 import { QualityParamsModal } from '../modals/QualityParamsModal';
 import styles from './Topbar.module.scss';
 import { labelFrom } from '../../utils/labels';
+import { telemetryInteract } from '../../utils/telemetry';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -21,7 +22,11 @@ interface TopbarProps {
   isDirty: boolean;
   lastSaved: string | null;
   isFormValid?: boolean;
-  onToolbarEvent: (event: { action: ToolbarAction; data?: unknown }) => void;
+  onToolbarEvent: (event: {
+    action: ToolbarAction;
+    data?: unknown;
+    telemetry?: { id: string; subtype?: string; extra?: Record<string, unknown> };
+  }) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +119,12 @@ const ReviewCommentModal: React.FC<ReviewCommentModalProps> = ({
           <Button variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
+          {/* Old editor parity: shared by both Reject and Send-Back-for-
+              Corrections in old's single add_review_comments dialog. Its
+              'submit_review' telemetry fires from each caller (Topbar's two
+              onConfirm usages below, via emit(..., {id:'submit_review',...})),
+              not here — onConfirm reaches SplitEditorShell's blanket
+              per-action INTERACT. */}
           <Button
             variant={submitVariant}
             onClick={() => onConfirm(comment.trim())}
@@ -199,6 +210,11 @@ const ConfirmReviewModal: React.FC<ConfirmReviewModalProps> = ({ onConfirm, onCa
           <Button variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
+          {/* This dialog IS old's term-and-condition.component.html (same
+              title/consent copy) — its 'submit' telemetry fires from the
+              caller (Topbar's onConfirm usage below, via emit('sendForReview',
+              ..., {id:'submit',...})), not here, since onConfirm reaches
+              SplitEditorShell's blanket per-action INTERACT. */}
           <Button variant="primary" onClick={onConfirm} disabled={!agreed}>
             Submit
           </Button>
@@ -262,9 +278,14 @@ export const Topbar: React.FC<TopbarProps> = ({
     : [];
 
   // ── Emit helper ───────────────────────────────────────────────────────────
+  // telemetry is optional, richer id/subtype/extra for the one blanket
+  // INTERACT that SplitEditorShell.handleToolbarEvent already fires for every
+  // forwarded action — passing it here (rather than also calling
+  // telemetryInteract directly at the call site) keeps that a single event
+  // per click instead of two.
   const emit = useCallback(
-    (action: ToolbarAction, data?: unknown) => {
-      onToolbarEvent({ action, data });
+    (action: ToolbarAction, data?: unknown, telemetry?: { id: string; subtype?: string; extra?: Record<string, unknown> }) => {
+      onToolbarEvent({ action, data, telemetry });
     },
     [onToolbarEvent],
   );
@@ -272,7 +293,11 @@ export const Topbar: React.FC<TopbarProps> = ({
   // ── Modal confirm handlers ────────────────────────────────────────────────
   const handlePublishConfirm = useCallback(() => {
     closeModal();
-    emit('publish');
+    emit('publish', undefined, {
+      id: 'yes',
+      subtype: 'submit',
+      extra: { key: 'dialog_id', value: 'publish_collection' },
+    });
   }, [closeModal, emit]);
 
   const handleQualityConfirm = useCallback(
@@ -291,7 +316,11 @@ export const Topbar: React.FC<TopbarProps> = ({
   const handleSendBack = useCallback(
     (comment: string) => {
       setShowSendBack(false);
-      emit('sendBackForCorrections', { comment });
+      emit('sendBackForCorrections', { comment }, {
+        id: 'submit_review',
+        subtype: 'submit',
+        extra: { key: 'dialog_id', value: 'add_review_comments' },
+      });
     },
     [emit],
   );
@@ -309,7 +338,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         {/* ── Left: Back + Title + Status ─────────────────────── */}
           <button
             className="ce-back"
-            onClick={() => emit('back')}
+            onClick={() => emit('back', undefined, { id: 'back', subtype: 'launch' })}
             aria-label="Go back"
             type="button"
           >
@@ -356,7 +385,7 @@ export const Topbar: React.FC<TopbarProps> = ({
             <button
               className="ce-btn ghost"
               type="button"
-              onClick={() => setShowFeedback(true)}
+              onClick={() => { telemetryInteract('view_comments', { subtype: 'launch' }); setShowFeedback(true); }}
               title="View reviewer feedback"
             >
               <Icon name="info" size={15} />
@@ -368,7 +397,7 @@ export const Topbar: React.FC<TopbarProps> = ({
           <button
             className="ce-btn ghost"
             type="button"
-            onClick={() => emit('preview')}
+            onClick={() => emit('preview', undefined, { id: 'preview', subtype: 'launch' })}
             disabled={isSaving}
             title="Preview question set"
           >
@@ -383,7 +412,7 @@ export const Topbar: React.FC<TopbarProps> = ({
             <button
               className="ce-btn ghost"
               type="button"
-              onClick={() => emit('saveContent')}
+              onClick={() => emit('saveContent', undefined, { id: 'save_as_draft', subtype: 'submit' })}
             >
               {L('button_labels.save_collection_btn_label', 'Save as Draft')}
             </button>
@@ -394,7 +423,7 @@ export const Topbar: React.FC<TopbarProps> = ({
             <button
               className="ce-btn primary"
               type="button"
-              onClick={() => setShowConfirmReview(true)}
+              onClick={() => { telemetryInteract('send_for_review', { subtype: 'launch' }); setShowConfirmReview(true); }}
               disabled={buttonLoaders.saveContent || isSaving || !isFormValid}
               title={!isFormValid ? 'Fill all required fields before sending for review' : undefined}
             >
@@ -409,7 +438,7 @@ export const Topbar: React.FC<TopbarProps> = ({
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => openModal('publishChecklist')}
+                onClick={() => { telemetryInteract('publish', { subtype: 'submit' }); openModal('publishChecklist'); }}
                 disabled={buttonLoaders.publishContent || !isFormValid}
                 isLoading={buttonLoaders.publishContent}
               >
@@ -420,7 +449,7 @@ export const Topbar: React.FC<TopbarProps> = ({
               <Button
                 variant="danger"
                 size="sm"
-                onClick={() => setShowRejectModal(true)}
+                onClick={() => { telemetryInteract('reject', { subtype: 'submit' }); setShowRejectModal(true); }}
                 disabled={buttonLoaders.rejectContent}
                 isLoading={buttonLoaders.rejectContent}
               >
@@ -437,7 +466,7 @@ export const Topbar: React.FC<TopbarProps> = ({
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => openModal('qualityParams', { action: 'approve' })}
+                onClick={() => { telemetryInteract('approve', { subtype: 'submit' }); openModal('qualityParams', { action: 'approve' }); }}
                 disabled={buttonLoaders.sourcingApproveContent}
                 isLoading={buttonLoaders.sourcingApproveContent}
               >
@@ -448,7 +477,7 @@ export const Topbar: React.FC<TopbarProps> = ({
               <Button
                 variant="danger"
                 size="sm"
-                onClick={() => openModal('qualityParams', { action: 'reject' })}
+                onClick={() => { telemetryInteract('reject', { subtype: 'submit' }); openModal('qualityParams', { action: 'reject' }); }}
                 disabled={buttonLoaders.sourcingRejectContent}
                 isLoading={buttonLoaders.sourcingRejectContent}
               >
@@ -537,7 +566,13 @@ export const Topbar: React.FC<TopbarProps> = ({
         <ConfirmReviewModal
           onConfirm={() => {
             setShowConfirmReview(false);
-            emit('sendForReview');
+            emit('sendForReview', undefined, {
+              id: 'submit',
+              subtype: 'submit',
+              // Reached only once agreed===true (the Submit button is gated
+              // on it), so this is always true at this point.
+              extra: { key: 'dialog_id', value: 'accepting_terms_conditions', termAndConditions: true },
+            });
           }}
           onCancel={() => setShowConfirmReview(false)}
         />
@@ -552,7 +587,11 @@ export const Topbar: React.FC<TopbarProps> = ({
           submitVariant="danger"
           onConfirm={(comment) => {
             setShowRejectModal(false);
-            emit('reject', { comment });
+            emit('reject', { comment }, {
+              id: 'submit_review',
+              subtype: 'submit',
+              extra: { key: 'dialog_id', value: 'add_review_comments' },
+            });
           }}
           onCancel={() => setShowRejectModal(false)}
         />

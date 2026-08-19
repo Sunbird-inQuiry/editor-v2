@@ -58,7 +58,7 @@
 
   // Editor dialog theme (same surface as ConfirmDialog)
   background-color: var(--sb-card, #fff);
-  border-radius:    18px;
+  border-radius:    var(--sbx-radius-2xl);
   box-shadow:       var(--sb-shadow-deep);
   border:           none;
 

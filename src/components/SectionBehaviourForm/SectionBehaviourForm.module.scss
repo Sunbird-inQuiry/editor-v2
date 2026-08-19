@@ -9,7 +9,7 @@
   color: var(--ink, #1a1a1a);
   background: #fff;
   border: 1px solid var(--sb-border, #ece7df);
-  border-radius: 12px;
+  border-radius: var(--sbx-radius-xl);
   padding: 13px 15px;
   line-height: 1.5;
   transition: border-color .14s;
@@ -23,7 +23,7 @@
     border-color: var(--accent, #A85236);
     box-shadow: 0 0 0 4px var(--accent-soft, color-mix(in srgb, var(--accent, #A85236) 11%, #fff));
     outline: none;
-    border-radius: 12px;
+    border-radius: var(--sbx-radius-xl);
   }
 
   &:disabled {
@@ -67,7 +67,7 @@
   background-repeat: no-repeat;
   background-position: right 14px center;
   color: var(--sb-text-faint, #9a9a9a);
-  &:focus { border-radius: 12px; }
+  &:focus { border-radius: var(--sbx-radius-xl); }
 }
 
 .timeRow { display: flex; align-items: center; gap: 10px; }
@@ -104,7 +104,7 @@
   width: 18px;
   height: 18px;
   border: 1.5px solid var(--sb-border, #ece7df);
-  border-radius: 5px;
+  border-radius: var(--sbx-radius-sm);
   background: #fff;
   display: grid;
   place-items: center;

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, lazy, Suspense, Fragment } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import ImagePickerModal from '../shared/ImagePickerModal';
 import { Icon } from '../shared/Icon';
 import type { EditorMode, ToolbarAction } from '../../types/editor';
@@ -8,11 +9,13 @@ import { useTreeStore } from '../../store/tree.store';
 import { useQuestionStore } from '../../store/question.store';
 import { useUiStore } from '../../store/ui.store';
 import { isEditingAllowed } from '../../utils/context';
-import { telemetryImpression } from '../../utils/telemetry';
-import { useFramework } from '../../hooks/useFramework';
+import { telemetryImpression, setTelemetryPageId } from '../../utils/telemetry';
+import { useFramework, allKnownFrameworkCategoryCodes } from '../../hooks/useFramework';
 import { useQuestionRead } from '../../hooks/useQuestionRead';
 import { useLabels } from '../../hooks/useLabels';
-import SparkMetaForm from '../SparkMetaForm/SparkMetaForm';
+import { searchFrameworks } from '../../api/framework';
+import SparkMetaForm, { fieldMatchesSection, SingleSelectDropdown, adaptFieldsForFramework } from '../SparkMetaForm/SparkMetaForm';
+import formStyles from '../SparkMetaForm/SparkMetaForm.module.scss';
 import QuestionDetail from '../QuestionDetail/QuestionDetail';
 
 const QuestionEditor = lazy(() => import('../QuestionEditor/QuestionEditor'));
@@ -33,14 +36,16 @@ type TabKey = 'details' | 'audience' | 'behaviour' | 'question' | 'meta';
 
 interface TabDef { key: TabKey; label: string; section?: string; }
 
+// section must match exactly what each tab's own <SparkMetaForm section="…"/>
+// below is called with — reused to check for required fields per tab.
 const SET_TABS: TabDef[] = [
-  { key: 'details', label: 'Details' },
+  { key: 'details', label: 'Details', section: 'Details' },
   { key: 'audience', label: 'Audience & Curriculum', section: 'Audience & Curriculum' },
-  { key: 'behaviour', label: 'Behaviour' },
+  { key: 'behaviour', label: 'Behaviour', section: 'Behaviour' },
 ];
 const SECTION_TABS: TabDef[] = [
-  { key: 'details', label: 'Details' },
-  { key: 'behaviour', label: 'Behaviour' },
+  { key: 'details', label: 'Details', section: 'Details' },
+  { key: 'behaviour', label: 'Behaviour', section: 'Behaviour' },
 ];
 const QUESTION_TABS: TabDef[] = [
   { key: 'question', label: 'Question' },
@@ -64,7 +69,7 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
   onToolbarEvent,
   hasContent = true,
 }) => {
-  const { frameworkTerms } = useFramework();
+  const { frameworkTerms, categoryOrder } = useFramework();
   const L = useLabels();
   // Hydrate the selected question from question/v2/read (old-editor parity —
   // hierarchy responses don't embed editorState/options/solutions).
@@ -83,6 +88,18 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
 
   const selectedNodeId = useTreeStore((s) => s.selectedNodeId);
   const activeNodeMeta = useTreeStore((s) => s.activeNodeMeta);
+  // The read-only question Details tab resolves category options from that
+  // question's OWN framework (picked in QuestionEditor.tsx's Details
+  // section), not root's — fully local, same as the editable form; falls
+  // back to root/live (frameworkTerms above) until the question has one.
+  const questionFramework = useFramework(
+    isCurrentNodeQuestion ? (activeNodeMeta as Record<string, unknown> | undefined)?.framework as string | undefined : undefined,
+  );
+  const questionFrameworkTerms = questionFramework.frameworkTerms;
+  // Org-only category codes for that question's own framework — same fix as
+  // the editable Details form: a target framework's categories must never
+  // keep a field required here either, so this read-only view matches.
+  const questionCategoryOrder = questionFramework.categoryOrder;
   const breadcrumb = useTreeStore((s) => s.breadcrumb);
   const updateNode = useTreeStore((s) => s.updateNode);
   const selectNode = useTreeStore((s) => s.selectNode);
@@ -102,8 +119,18 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
   // Lock hierarchy + topbar while the inline question editor is open.
   useEffect(() => {
     setQuestionEditorOpen(isCurrentNodeQuestion && inlineEditorOpen);
-    if (isCurrentNodeQuestion && inlineEditorOpen) telemetryImpression('question_editor');
-    return () => setQuestionEditorOpen(false);
+    if (isCurrentNodeQuestion && inlineEditorOpen) {
+      // Old editor parity: the ambient pageid travels with the view, so a
+      // later INTERACT (e.g. SplitEditorShell's toolbar) fired while this
+      // view is open reports the right pageid too, not just this one
+      // IMPRESSION call.
+      setTelemetryPageId('question_editor');
+      telemetryImpression('question_editor');
+    }
+    return () => {
+      setQuestionEditorOpen(false);
+      if (isCurrentNodeQuestion && inlineEditorOpen) setTelemetryPageId('questionset_editor');
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCurrentNodeQuestion, inlineEditorOpen]);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
@@ -133,6 +160,41 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
     onToolbarEvent({ action: 'onFormValueChange', data: { field: code, value } });
   }, [selectedNodeId, updateNode, onToolbarEvent]);
 
+  // Standalone Framework picker (Audience & Curriculum tab) — there's no
+  // category-definition field for this, so it isn't part of the generic
+  // SparkMetaForm render below. Saves onto the root's own metadata (same as
+  // any other field) AND live-updates editor.store's contentFramework so
+  // useFramework() refetches immediately — see plan for framework-driven
+  // category selection.
+  const setContentFramework = useEditorStore((s) => s.setContentFramework);
+  // Which framework `type`s are selectable comes from the category
+  // definition's own orgFWType — never hardcoded (see api/framework.ts).
+  const orgFWType = useEditorStore((s) => s.categoryMeta?.frameworkMetadata?.orgFWType);
+  const frameworkListQuery = useQuery({
+    queryKey: ['framework-search', (orgFWType ?? []).slice().sort().join(',')],
+    queryFn: () => searchFrameworks({ type: orgFWType, systemDefault: 'Yes' }),
+    staleTime: 10 * 60 * 1000,
+  });
+  const channelFrameworks = frameworkListQuery.data ?? [];
+  const handleFrameworkChange = useCallback((value: string) => {
+    // Clear every category-term field ever seen this session — not just the
+    // outgoing framework's own codes. Two frameworks can share the same
+    // category code with different terms (e.g. both TPD and USF using
+    // industry/domain/skill); clearing only the outgoing framework's codes
+    // left a shared code's VALUE sitting in state, so it silently reappeared
+    // "pre-filled" the instant a framework with the same code was picked,
+    // even though the user never entered it under the new framework.
+    // useSaveHierarchy.ts strips the same thing defensively at save time,
+    // but the UI/local state should reflect the switch right away too.
+    if (selectedNodeId) {
+      const clearPatch: Record<string, unknown> = {};
+      for (const code of allKnownFrameworkCategoryCodes()) clearPatch[code] = [];
+      updateNode(selectedNodeId, clearPatch);
+    }
+    setContentFramework(value || null);
+    handleFormChange('framework', value);
+  }, [selectedNodeId, updateNode, setContentFramework, handleFormChange]);
+
   const handleFormValidityChange = useCallback((isValid: boolean) => {
     onToolbarEvent({ action: 'onFormStatusChange', data: { isValid } });
   }, [onToolbarEvent]);
@@ -160,6 +222,23 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
 
   const formConfig = isCurrentNodeRoot ? rootFormConfig : unitFormConfig;
   const nodeTabs = isCurrentNodeQuestion ? QUESTION_TABS : isCurrentNodeRoot ? SET_TABS : SECTION_TABS;
+
+  // Required fields can be scattered across tabs the user hasn't opened yet
+  // (validation only surfaces them on Save) — mark any tab that has at
+  // least one required field up front, so it's not a surprise at save time.
+  // Question tabs aren't checked: "question" is a read-only preview, and
+  // "meta" is always read-only too (question fields are authored inside the
+  // question editor itself, not here).
+  const tabHasRequiredField = useCallback(
+    (tab: TabDef): boolean => {
+      if (isCurrentNodeQuestion) return false;
+      const fields = isCurrentNodeRoot
+        ? adaptFieldsForFramework(formConfig ?? [], frameworkTerms, categoryOrder, isCurrentNodeRoot)
+        : (formConfig ?? []);
+      return fields.some((f) => f.visible && f.required && fieldMatchesSection(f, tab.section));
+    },
+    [isCurrentNodeQuestion, formConfig, isCurrentNodeRoot, frameworkTerms, categoryOrder],
+  );
 
   // Meta subtitle
   const metaSubtitle = (() => {
@@ -337,6 +416,9 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                     onClick={() => { setActiveTab(tab.key); setInlineEditorOpen(false); }}
                   >
                     {L(`ui.${tab.key}`, tab.label)}
+                    {tabHasRequiredField(tab) && (
+                      <span className="ce-tab-required" aria-label={L('ui.hasRequiredFields', 'Has required fields')}> *</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -367,7 +449,9 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                       onChange={handleFormChange}
                       onValidityChange={handleFormValidityChange}
                       readOnly
-                      frameworkTerms={frameworkTerms}
+                      frameworkTerms={questionFrameworkTerms}
+                      categoryOrder={questionCategoryOrder}
+                      showAllSections
                     />
                   </div>
                 )}
@@ -396,6 +480,8 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                         readOnly={isReadOnly}
                         section="Details"
                         frameworkTerms={frameworkTerms}
+                        categoryOrder={categoryOrder}
+                        isRoot={isCurrentNodeRoot}
                       />
                     ) : (
                       <p className="ce-empty" style={{ flex: 'none', padding: '16px 0' }}>No fields configured.</p>
@@ -408,6 +494,23 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                   <div className="ce-tabbody">
                     <h2 className="ce-secttl">{L('ui.targetAudience', 'Target Audience')}</h2>
                     <p className="ce-sectsub">{L('ui.targetAudienceSub', 'Curriculum alignment for the intended learners.')}</p>
+
+                    {channelFrameworks.length > 0 && (
+                      <div className={formStyles.field} style={{ marginBottom: 22 }}>
+                        <label htmlFor="framework-picker" className={formStyles.label}>
+                          {L('ui.framework', 'Framework')}
+                        </label>
+                        <SingleSelectDropdown
+                          fieldId="framework-picker"
+                          value={String((activeNodeMeta as Record<string, unknown> | undefined)?.framework ?? '')}
+                          options={channelFrameworks.map((fw) => ({ value: fw.identifier, label: fw.name }))}
+                          disabled={isReadOnly}
+                          placeholder={L('ui.selectFramework', 'Select framework')}
+                          onChange={handleFrameworkChange}
+                        />
+                      </div>
+                    )}
+
                     <SparkMetaForm
                       fields={withLicenseOptions(formConfig)}
                       values={activeNodeMeta as Record<string, unknown>}
@@ -416,6 +519,8 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                       readOnly={isReadOnly}
                       section="Audience & Curriculum"
                       frameworkTerms={frameworkTerms}
+                      categoryOrder={categoryOrder}
+                      isRoot={isCurrentNodeRoot}
                     />
                   </div>
                 )}
@@ -443,6 +548,8 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                       readOnly={isReadOnly}
                       section="Behaviour"
                       frameworkTerms={frameworkTerms}
+                      categoryOrder={categoryOrder}
+                      isRoot={isCurrentNodeRoot}
                     />
                   </div>
                 )}

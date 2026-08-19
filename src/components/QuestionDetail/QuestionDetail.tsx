@@ -9,6 +9,7 @@ import React, { lazy, Suspense, useState } from 'react';
 import { Monitor, Smartphone } from 'lucide-react';
 import { Icon } from '../shared/Icon';
 import { useTreeStore } from '../../store/tree.store';
+import { useCopyRegistryStore } from '../../store/copyRegistry.store';
 import { useLabels } from '../../hooks/useLabels';
 import type { INode } from '../../types/editor';
 
@@ -35,6 +36,12 @@ const QuestionDetail: React.FC<QuestionDetailProps> = ({
   const [portrait, setPortrait] = useState(false);
   // A question that has never been saved/authored has nothing to play.
   const hasContent = !!(node.metadata?.body ?? node.metadata?.editorState);
+  // Only a Library "Copy" is editable — a question attached by reference
+  // is shared with every other questionset that has it too, so editing it
+  // here is never offered. Both kinds are visibility:"Default" (see
+  // copyRegistry.store.ts), so the copy registry is the only way to tell
+  // them apart.
+  const isEditableCopy = useCopyRegistryStore((s) => s.isCopy(node.identifier));
 
   return (
     <>
@@ -96,9 +103,11 @@ const QuestionDetail: React.FC<QuestionDetailProps> = ({
 
       {isEditMode && (
         <div className="ce-qactions">
-          <button className="ce-btn primary" onClick={onOpenEditor} type="button">
-            <Icon name="edit-sm" size={15} />{L('ui.openInEditor', 'Open in editor')}
-          </button>
+          {isEditableCopy && (
+            <button className="ce-btn primary" onClick={onOpenEditor} type="button">
+              <Icon name="edit-sm" size={15} />{L('ui.openInEditor', 'Open in editor')}
+            </button>
+          )}
           <button className="ce-btn danger" onClick={onRemove} type="button">
             <Icon name="trash" size={15} />{L('ui.remove', 'Remove')}
           </button>

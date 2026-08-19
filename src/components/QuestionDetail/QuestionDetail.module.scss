@@ -84,7 +84,7 @@
   gap: 10px;
   padding: 7px 7px 7px 14px;
   border: 1px solid var(--sbx-color-border-default, #dde1ea);
-  border-radius: 999px;
+  border-radius: var(--sbx-radius-full);
   background: var(--sbx-color-surface-base, #fff);
 }
 
@@ -101,7 +101,7 @@
   font-weight: 700;
   color: var(--sbx-color-primary, #1b4fd8);
   background: var(--sbx-color-primary-subtle, #eef2ff);
-  border-radius: 999px;
+  border-radius: var(--sbx-radius-full);
   padding: 4px 12px;
 }
 
@@ -191,7 +191,7 @@
 
 .reoChip {
   padding: 8px 16px;
-  border-radius: 999px;
+  border-radius: var(--sbx-radius-full);
   background: var(--sbx-color-surface-base, #fff);
   border: 1px solid var(--sbx-color-border-default, #dde1ea);
   font-size: 14px;

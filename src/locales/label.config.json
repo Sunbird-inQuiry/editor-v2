@@ -246,7 +246,16 @@
       "037": "Unable to accepted question",
       "038": "Unable to approve content",
       "041": "Adding question to questionset failed. Please try again.",
-      "042": "Please fill valid question details."
+      "042": "Please fill valid question details.",
+      "selectSection": "Select a section to add the question to",
+      "sectionNotSaved": "Save this section before adding questions to it",
+      "alreadyInSet": "This question is already in the set",
+      "maxDepth": "Cannot add here — maximum depth reached",
+      "attachFailed": "Could not add this question — please try again",
+      "copyFailed": "Could not copy this question — please try again",
+      "copyPublishFailed": "Copied, but could not be published — it stays a Draft.",
+      "republishFailed": "Question saved, but could not be published — this edit stays hidden until it's republished.",
+      "publishFailed": "Question created, but could not be published — it stays a Draft and won't show up in the Library until published."
     },
     "success": {
       "001": "Content is saved",
@@ -261,7 +270,9 @@
       "038": "Content is successfully approved",
       "039": "Content is successfully rejected",
       "040": "Content sent back for corrections",
-      "043": "Comment saved successfully"
+      "043": "Comment saved successfully",
+      "questionAdded": "\"{NAME}\" added",
+      "questionCopied": "\"{NAME}\" copied"
     }
   },
   "categoryLabels": {
@@ -298,7 +309,7 @@
     "reviewerFeedback": "Reviewer feedback",
     "unsavedQuestion": "Unsaved question",
     "hierarchy": "Hierarchy",
-    "addQuestion": "Add Question",
+    "createQuestion": "Create Question",
     "addSection": "Add Section",
     "typeMcq": "Multiple Choice",
     "typeMcqDesc": "Pick one correct option from a list",
@@ -365,6 +376,8 @@
     "sectionDetails": "Section Details",
     "sectionDetailsSub": "Title and instructions for this section.",
     "targetAudience": "Target Audience",
+    "framework": "Framework",
+    "selectFramework": "Select framework",
     "targetAudienceSub": "Curriculum alignment for the intended learners.",
     "behaviourScoring": "Behaviour & Scoring",
     "behaviourScoringSub": "How the set is timed, attempted and summarised.",
@@ -399,6 +412,8 @@
     "invalidEnterQuestion": "Enter the question first",
     "invalidEnterTitle": "Enter the title in Details",
     "invalidEnterMarks": "Enter the marks in Details",
+    "invalidSelectFramework": "Select a framework in Details",
+    "invalidLoadingFrameworks": "Loading frameworks…",
     "invalidFillDetails": "Fill all required fields in Details",
     "invalidFillOptions": "Fill in all options",
     "invalidMarkCorrect": "Mark one option as the correct answer",
@@ -424,6 +439,26 @@
     "subscript": "Subscript",
     "superscript": "Superscript",
     "questionSet": "Question Set",
-    "agreeTerms": "I agree to the Terms & Conditions and Content Policy"
+    "agreeTerms": "I agree to the Terms & Conditions and Content Policy",
+    "questionLibrary": "Question Library",
+    "collapseLibraryPanel": "Collapse library panel",
+    "searchLibrary": "Search library…",
+    "clearSearch": "Clear search",
+    "filterByQuestionType": "Filter by question type",
+    "questionList": "Question list",
+    "loadingQuestions": "Loading questions…",
+    "noQuestionsFound": "No questions found. Try a different search.",
+    "untitledQuestion": "Untitled Question",
+    "addToQuestionSet": "Add to question set",
+    "copyQuestion": "Copy to this section",
+    "loadMoreQuestions": "Load more questions",
+    "loading": "Loading…",
+    "loadMore": "Load more",
+    "filterAll": "All",
+    "filterMatch": "Match",
+    "sortAZ": "Sort A–Z",
+    "sortByRecent": "Switch to most recent first",
+    "sortAZLabel": "A–Z",
+    "hasRequiredFields": "Has required fields"
   }
 }

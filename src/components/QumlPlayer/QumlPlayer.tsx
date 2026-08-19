@@ -178,7 +178,11 @@ const QumlPlayer: React.FC<QumlPlayerProps> = ({ questionSetId, singleQuestionId
           const qMeta = {
             ...qFull,
             identifier: singleQuestionId,
-            name: qNode?.name ?? 'Question',
+            // Falls back to the fetched question's own name when it isn't a
+            // node in the current tree (e.g. previewing a Library sidebar
+            // question that belongs to no open section) — qNode is only
+            // ever set for questions already in this questionset's outline.
+            name: qNode?.name ?? (typeof qFull.name === 'string' ? qFull.name : undefined) ?? 'Question',
             mimeType: 'application/vnd.sunbird.question',
             objectType: 'Question',
             visibility: 'Parent',

@@ -8,6 +8,7 @@ import { useValidateAndSave } from '../../hooks/useValidateAndSave';
 import { useToolbarActions } from '../../hooks/useToolbarActions';
 import { Topbar } from '../Topbar/Topbar';
 import OutlineTree from '../OutlineTree/OutlineTree';
+import LibraryDock from '../LibraryDock/LibraryDock';
 import { useUiStore } from '../../store/ui.store';
 import { notifySuccess } from '../../utils/notify';
 import { label } from '../../utils/labels';
@@ -24,6 +25,7 @@ interface SplitEditorShellProps {
 
 export function SplitEditorShell({ events }: SplitEditorShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [libraryCollapsed, setLibraryCollapsed] = useState(false);
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
   const [isFormValid, setIsFormValid] = useState(true);
   const [pendingBack, setPendingBack] = useState(false);
@@ -47,15 +49,28 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
   }, [isDirty]);
 
   const handleToolbarEvent = useCallback(
-    async (event: { action: ToolbarAction; data?: unknown }) => {
-      const { action, data } = event;
+    async (event: {
+      action: ToolbarAction;
+      data?: unknown;
+      // Internal-only — callers that need a richer old-editor id/subtype/extra
+      // (distinct from the raw action name) pass it here instead of calling
+      // telemetryInteract themselves, so there is exactly one INTERACT per
+      // click, never two. NOT part of the host-facing event contract below.
+      telemetry?: { id: string; subtype?: string; extra?: Record<string, unknown> };
+    }) => {
+      const { action, data, telemetry } = event;
       // 'back' with unsaved changes is NOT forwarded yet — the host would
       // navigate away before the prompt shows; it's emitted once the prompt
-      // resolves (save/discard handlers below).
-      if (!(action === 'back' && isDirty)) events.onToolbarEvent?.(event);
+      // resolves (save/discard handlers below). telemetry is stripped —
+      // internal plumbing, not part of the public {action, data} contract.
+      if (!(action === 'back' && isDirty)) events.onToolbarEvent?.({ action, data });
       // Old editor logs an INTERACT per toolbar action.
       if (!['onFormValueChange', 'onFormStatusChange'].includes(action)) {
-        telemetryInteract(action);
+        if (telemetry) {
+          telemetryInteract(telemetry.id, { subtype: telemetry.subtype, extra: telemetry.extra });
+        } else {
+          telemetryInteract(action);
+        }
       }
 
       switch (action) {
@@ -166,6 +181,32 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
             onToolbarEvent={handleToolbarEvent}
           />
         </main>
+
+        {/* Right — Question library */}
+        {/* Locked while a question is being edited, like the left hierarchy. */}
+        {editorMode === 'edit' && (
+          <>
+            <aside
+              className={`ce-lib${libraryCollapsed || questionEditorOpen ? ' collapsed' : ''}`}
+              style={questionEditorOpen ? { pointerEvents: 'none' } : undefined}
+              aria-disabled={questionEditorOpen || undefined}
+            >
+              <LibraryDock onCollapse={() => setLibraryCollapsed(true)} />
+            </aside>
+
+            {/* Reopen tab when library is collapsed */}
+            {libraryCollapsed && !questionEditorOpen && (
+              <button
+                className="ce-reopen right"
+                onClick={() => setLibraryCollapsed(false)}
+                title="Show question library"
+                aria-label="Show question library panel"
+              >
+                ‹
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {/* Modals */}

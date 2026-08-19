@@ -27,6 +27,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv         from 'dotenv';
 import { convert }    from './latexService.js';
+import { renderHarnessPage } from './harnessPage.js';
 
 // Match Vite's env-file precedence: .env.local overrides .env.
 // dotenv won't override variables already set, so the first call wins.
@@ -71,83 +72,14 @@ app.get([
   '/web-component/assets/quml-editor/',
   '/web-component/assets/quml-editor/index.html',
 ], (req, res) => {
-  const contentId = process.env.CONTENT_ID || '';
-  const channel   = process.env.CHANNEL    || '';
-  const framework = process.env.FRAMEWORK  || 'NCF';
-  const mode      = process.env.MODE       || 'edit';
-  const userId    = process.env.USER_ID    || 'user-001';
-
-  const context = JSON.stringify({
-    authToken:  '',
-    userId,
-    channel,
-    pdata:      { id: 'sunbird.portal', ver: '1.0' },
-    env:        'questionset_editor',
-    contentId,
-    identifier: contentId,
-    framework,
-  });
-
-  const config = JSON.stringify({
-    mode,
-    objectType:      'QuestionSet',
-    primaryCategory: 'Practice Question Set',
-    maxDepth:        3,
-  });
-
   res.setHeader('Content-Type', 'text/html');
-  res.send(`<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QuML Editor – Standalone</title>
-
-  <!-- Resolve React/ReactDOM peer-deps that are external in the dist bundle -->
-  <script type="importmap">
-  {
-    "imports": {
-      "react":             "https://esm.sh/react@19.2.7",
-      "react/jsx-runtime": "https://esm.sh/react@19.2.7/jsx-runtime",
-      "react-dom":         "https://esm.sh/react-dom@19.2.7",
-      "react-dom/client":  "https://esm.sh/react-dom@19.2.7/client"
-    }
-  }
-  <\/script>
-
-  <!-- Plus Jakarta Sans — same font the web component injects into shadow DOM -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
-
-  <link rel="stylesheet" href="/style.css" />
-  <!-- CKEditor must be on window before the WC initialises -->
-  <script src="/ckeditor/ckeditor.js"><\/script>
-
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { height: 100vh; overflow: hidden; }
-    sb-questionset-editor { display: block; width: 100%; height: 100%; }
-  </style>
-</head>
-<body>
-  <div id="root" style="width:100%;height:100%;"></div>
-
-  <script type="module">
-    import { registerQuestionsetEditor } from '/index.js';
-    registerQuestionsetEditor();
-
-    // Set props as element PROPERTIES (not string attributes) so React
-    // receives parsed objects on the very first render.
-    // JSON is valid JS object-literal syntax, so this works without JSON.parse.
-    const editor = document.createElement('sb-questionset-editor');
-    editor.context = ${context};
-    editor.config  = ${config};
-    editor.style.cssText = 'display:block;width:100%;height:100%;';
-    document.getElementById('root').appendChild(editor);
-  <\/script>
-</body>
-</html>`);
+  res.send(renderHarnessPage({
+    contentId: process.env.CONTENT_ID || '',
+    channel:   process.env.CHANNEL    || '',
+    framework: process.env.FRAMEWORK  || 'NCF',
+    mode:      process.env.MODE       || 'edit',
+    userId:    process.env.USER_ID    || 'user-001',
+  }));
 });
 
 // ── Proxy helpers ─────────────────────────────────────────────────────────────

@@ -37,13 +37,11 @@ function getStatusClass(status?: string): string {
 
 interface ContextMenuProps {
   isRoot: boolean;
-  isFolder: boolean;
   isQuestion: boolean;
   isEditMode: boolean;
   nodeId: string;
   onClose: () => void;
   onAddSection: () => void;
-  onAddQuestion: () => void;
   onDelete: () => void;
   onPreview: () => void;
 }
@@ -54,7 +52,7 @@ const ContextMenu: React.FC<ContextMenuProps> = (props) => {
 };
 
 const ContextMenuInner: React.FC<ContextMenuProps & { L: (p: string, f: string) => string }> = ({
-  isRoot, isFolder, isQuestion, isEditMode, onClose, onAddSection, onAddQuestion, onDelete, onPreview, L,
+  isRoot, isQuestion, isEditMode, onClose, onAddSection, onDelete, onPreview, L,
 }) => {
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -82,16 +80,6 @@ const ContextMenuInner: React.FC<ContextMenuProps & { L: (p: string, f: string) 
           onClick={() => { onPreview(); onClose(); }}
         >
           <Icon name="play" size={13} /> {L('button_labels.preview_collection_btn_label', 'Preview')}
-        </button>
-      )}
-      {isFolder && isEditMode && (
-        <button
-          style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '9px 11px', border: 'none', background: 'transparent', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, textAlign: 'left', color: 'var(--sb-text-2)' }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-soft)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          onClick={() => { onAddQuestion(); onClose(); }}
-        >
-          <Icon name="plus" size={13} /> {L('ui.addQuestion', 'Add Question')}
         </button>
       )}
       {isRoot && isEditMode && (
@@ -133,7 +121,6 @@ interface NodeProps {
   onOpenCtx: (id: string) => void;
   onCloseCtx: () => void;
   onAddSection: (parentId: string) => void;
-  onAddQuestion: (parentId: string) => void;
   onDelete: (id: string) => void;
   onPreview: (id: string) => void;
 }
@@ -141,7 +128,7 @@ interface NodeProps {
 const TreeNode: React.FC<NodeProps> = ({
   node, selectedId, openIds, contextMenuId, isEditMode,
   onSelect, onToggle, onOpenCtx, onCloseCtx,
-  onAddSection, onAddQuestion, onDelete, onPreview,
+  onAddSection, onDelete, onPreview,
 }) => {
   const L = useLabels();
   const kind = detectNodeKind(node);
@@ -221,13 +208,11 @@ const TreeNode: React.FC<NodeProps> = ({
             {isCtxOpen && (
               <ContextMenu
                 isRoot={isRoot}
-                isFolder={isSection}
                 isQuestion={isQuestion}
                 isEditMode={isEditMode}
                 nodeId={node.id}
                 onClose={onCloseCtx}
                 onAddSection={() => onAddSection(node.id)}
-                onAddQuestion={() => onAddQuestion(node.id)}
                 onDelete={() => onDelete(node.id)}
                 onPreview={() => onPreview(node.id)}
               />
@@ -252,7 +237,6 @@ const TreeNode: React.FC<NodeProps> = ({
               onOpenCtx={onOpenCtx}
               onCloseCtx={onCloseCtx}
               onAddSection={onAddSection}
-              onAddQuestion={onAddQuestion}
               onDelete={onDelete}
               onPreview={onPreview}
             />
@@ -312,13 +296,23 @@ const OutlineTree: React.FC<OutlineTreeProps> = ({ onCollapse }) => {
     addNode(parentId, 'section');
   }, [addNode, validateAndSave]);
 
-  const handleAddQuestion = useCallback(async (parentId: string) => {
+  // "Create Question" always makes a standalone question (see
+  // useSaveQuestion) — it is never attached to a section on creation, so
+  // there's no "valid parent" to resolve here. The root id is only a local
+  // scaffold for the authoring UI; it's dropped again once the create
+  // succeeds. Attaching a question to a section is a separate, explicit
+  // action from the Library sidebar.
+  const handleCreateQuestion = useCallback(async () => {
     if (!(await validateAndSave())) return;
-    // save() swaps any unsaved section's temp- id for the real backend id via
-    // replaceNodeId, which keeps selectedNodeId in sync — re-resolve the
-    // parent from it so we don't open the modal against a now-stale temp id.
-    const finalParentId = useTreeStore.getState().selectedNodeId ?? parentId;
-    openModal('questionTypeSelector', { parentId: finalParentId });
+    const rootId = useTreeStore.getState().treeData[0]?.id;
+    if (!rootId) return;
+    // Remember what was selected before authoring (read AFTER
+    // validateAndSave — it may have swapped a temp- section id for its real
+    // one via replaceNodeId) — the temp- scratch question node is dropped
+    // again once created (see useSaveQuestion), so selection should land
+    // back here rather than on nothing.
+    const previousSelectedNodeId = useTreeStore.getState().selectedNodeId;
+    openModal('questionTypeSelector', { parentId: rootId, previousSelectedNodeId });
   }, [openModal, validateAndSave]);
 
   const handleDelete = useCallback((id: string) => {
@@ -331,22 +325,13 @@ const OutlineTree: React.FC<OutlineTreeProps> = ({ onCollapse }) => {
 
   const rootId = treeData[0]?.id;
 
-  // Determine selected node kind to conditionally disable footer buttons
+  // Determine selected node kind to conditionally disable the footer's
+  // "Add Section" button ("Create Question" is always enabled).
   const selectedNode = selectedNodeId
     ? useTreeStore.getState().getNodeById(selectedNodeId)
     : null;
   const selectedKind = selectedNode ? detectNodeKind(selectedNode) : null;
   const addSectionDisabled = selectedKind === 'section' || selectedKind === 'question';
-
-  // Resolve parent for "Add Question" — only a selected section, or a
-  // selected question's parent section, is a valid parent; never fall back
-  // to rootId, or a question would be added directly under the questionset.
-  const questionParentId = selectedKind === 'section'
-    ? selectedNodeId
-    : selectedKind === 'question'
-      ? selectedNode?.parent ?? null
-      : null;
-  const addQuestionDisabled = !questionParentId;
 
   return (
     <>
@@ -376,7 +361,6 @@ const OutlineTree: React.FC<OutlineTreeProps> = ({ onCollapse }) => {
               onOpenCtx={setContextMenuId}
               onCloseCtx={() => setContextMenuId(null)}
               onAddSection={handleAddSection}
-              onAddQuestion={handleAddQuestion}
               onDelete={handleDelete}
               onPreview={handlePreview}
             />
@@ -393,12 +377,8 @@ const OutlineTree: React.FC<OutlineTreeProps> = ({ onCollapse }) => {
           >
             <Icon name="plus" size={15} />{L('ui.addSection', 'Add Section')}
           </button>
-          <button
-            onClick={() => questionParentId && handleAddQuestion(questionParentId)}
-            disabled={addQuestionDisabled}
-            style={addQuestionDisabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
-          >
-            <Icon name="plus" size={15} />{L('ui.addQuestion', 'Add Question')}
+          <button onClick={() => void handleCreateQuestion()}>
+            <Icon name="plus" size={15} />{L('ui.createQuestion', 'Create Question')}
           </button>
         </div>
       )}
