@@ -202,7 +202,15 @@ function buildSavePayload(
   if (rootEntry?.metadata) {
     const effectiveFramework = (rootEntry.metadata.framework as string | undefined)
       ?? (nodes[0]?.metadata?.framework as string | undefined);
-    if (effectiveFramework) {
+    // "No categories in the cache yet" only means "this framework has none"
+    // once the query has actually resolved — a save that lands while the
+    // just-switched framework's categories are still in flight would
+    // otherwise see an empty currentCodes and wipe every previously-seen
+    // category field (board/medium/gradeLevel/subject/etc.), including ones
+    // that legitimately belong to the framework just selected.
+    const frameworkDataReady = !!effectiveFramework
+      && queryClient.getQueryState(['framework', effectiveFramework])?.status === 'success';
+    if (effectiveFramework && frameworkDataReady) {
       const currentCodes = categoryCodesForFramework(effectiveFramework);
       for (const code of allKnownFrameworkCategoryCodes()) {
         if (!currentCodes.has(code)) {

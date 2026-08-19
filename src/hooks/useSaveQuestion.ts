@@ -672,9 +672,19 @@ export function useSaveQuestion() {
             ));
           }
           setIsDirty(false);
+          // The updateNode() call above (via tree.store.ts) also flips
+          // editor.store's own isDirty true — question.store's flag alone
+          // doesn't clear it, leaving the app looking unsaved (exit
+          // confirmation, dirty indicator) after a successful save.
+          useEditorStore.getState().setIsDirty(false);
           useEditorStore.getState().eventHandlers.onQuestionSaved?.({ identifier: nodeId, ...questionMeta });
 
-          return true;
+          // The content update itself succeeded either way (isDirty is
+          // cleared above regardless), but a caller navigating away on
+          // `true` (QuestionEditor.tsx's handleSave) needs to know the edit
+          // isn't actually live yet — keep the user on the editor when
+          // republish failed instead of claiming an unqualified success.
+          return published;
         }
 
         // ── Legacy Parent-visibility question — hierarchy update, unchanged ──
@@ -737,18 +747,27 @@ export function useSaveQuestion() {
         // scratch node below is gone, instead of leaving nothing selected.
         const previousSelectedNodeId = useTreeStore.getState().treeCache[selectedNodeId]
           ?.previousSelectedNodeId as string | undefined;
+        // The 5s wait above is long enough for the user to have already
+        // navigated elsewhere — only force the reselect if they're still
+        // sitting on this now-defunct temp node; otherwise it'd yank their
+        // current selection away once this timeout fires.
+        const stillOnTempNode = useTreeStore.getState().selectedNodeId === selectedNodeId;
 
         // The temp- node was only a scratch vehicle for the authoring UI —
         // drop it now that the question exists standalone on the backend.
         useTreeStore.getState().deleteNode(selectedNodeId);
 
-        if (previousSelectedNodeId && useTreeStore.getState().getNodeById(previousSelectedNodeId)) {
+        if (stillOnTempNode && previousSelectedNodeId && useTreeStore.getState().getNodeById(previousSelectedNodeId)) {
           useTreeStore.getState().selectNode(previousSelectedNodeId);
         }
 
         refreshLibrary();
 
         setIsDirty(false);
+        // The temp node backing this question was created via addNode(),
+        // which also flips editor.store's isDirty true — same gap as the
+        // standalone-update path above.
+        useEditorStore.getState().setIsDirty(false);
         useEditorStore.getState().eventHandlers.onQuestionSaved?.({ identifier, ...createMeta });
         return true;
       }

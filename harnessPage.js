@@ -4,8 +4,17 @@
  * a restart, mirroring Vite's __EDITOR_ENV__ injection at dev-start.
  */
 
+// Defensive escape for interpolating JSON into an inline <script> block —
+// an unescaped "</script>" in any value would break out of the tag. These
+// values are all server-controlled (process.env) today, not attacker
+// input, but this costs nothing and removes the sharp edge if that ever
+// changes.
+function escapeForInlineScript(json) {
+  return json.replace(/<\//g, '<\\/');
+}
+
 export function renderHarnessPage({ contentId, channel, framework, mode, userId }) {
-  const context = JSON.stringify({
+  const context = escapeForInlineScript(JSON.stringify({
     authToken:  '',
     userId,
     channel,
@@ -14,14 +23,14 @@ export function renderHarnessPage({ contentId, channel, framework, mode, userId 
     contentId,
     identifier: contentId,
     framework,
-  });
+  }));
 
-  const config = JSON.stringify({
+  const config = escapeForInlineScript(JSON.stringify({
     mode,
     objectType:      'QuestionSet',
     primaryCategory: 'Practice Question Set',
     maxDepth:        3,
-  });
+  }));
 
   return `<!doctype html>
 <html lang="en">

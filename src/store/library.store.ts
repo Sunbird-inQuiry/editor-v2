@@ -20,8 +20,8 @@ interface LibraryState {
   totalCount: number;
   offset: number;
   sortAZ: boolean;
-  setContent: (content: IContent[], total: number) => void;
-  appendContent: (content: IContent[], total: number) => void;
+  setContent: (content: IContent[], total: number, rawCount: number) => void;
+  appendContent: (content: IContent[], total: number, rawCount: number) => void;
   setFilter: (filter: string) => void;
   setSearch: (query: string) => void;
   setLoading: (loading: boolean) => void;
@@ -42,14 +42,19 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   offset: 0,
   sortAZ: false,
 
-  setContent: (content, total) => {
-    set({ allContent: content, totalCount: total, offset: content.length });
+  // offset tracks how many items the SERVER has actually returned so far
+  // (rawCount), not content.length — content is already copy-filtered
+  // (see useLibrary.ts), and deriving the next page's offset from the
+  // filtered count would under-count whenever any copies were excluded,
+  // making the next fetch re-request (and duplicate) items already seen.
+  setContent: (content, total, rawCount) => {
+    set({ allContent: content, totalCount: total, offset: rawCount });
     get().applyFilter();
   },
 
-  appendContent: (content, total) => {
+  appendContent: (content, total, rawCount) => {
     const merged = [...get().allContent, ...content];
-    set({ allContent: merged, totalCount: total, offset: merged.length });
+    set((state) => ({ allContent: merged, totalCount: total, offset: state.offset + rawCount }));
     get().applyFilter();
   },
 
