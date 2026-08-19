@@ -184,33 +184,15 @@ function buildSavePayload(
   const rootId = nodes[0]?.identifier;
   const rootEntry = rootId ? (nodesModified[rootId] as { metadata?: Record<string, unknown> } | undefined) : undefined;
 
-  // Clear any category-term field left over from a framework the user has
-  // since switched away from — only ever touches codes known to be
-  // framework-bound (allKnownFrameworkCategoryCodes), so unrelated fields
-  // (name, description, license, …) are untouched. `rootEntry.metadata`
-  // won't have `framework` at all unless it was touched this session
-  // (cleanMetadata only spreads cacheEdits for an existing root) — fall
-  // back to the persisted value so an unrelated save doesn't wipe fields
-  // that still validly belong to the content's already-saved framework.
-  //
-  // This is a PATCH against an EXISTING node — the backend merges the sent
-  // fields into the already-stored document before validating, so simply
-  // omitting a stale field (e.g. board="CBSE" from before the switch)
-  // leaves the OLD value in place server-side and validation still rejects
-  // it against the new framework. Send an explicit empty value instead, so
-  // the merge actually overwrites/clears it.
   if (rootEntry?.metadata) {
     const effectiveFramework = (rootEntry.metadata.framework as string | undefined)
       ?? (nodes[0]?.metadata?.framework as string | undefined);
-    if (effectiveFramework) {
+    const frameworkDataReady = !!effectiveFramework
+      && queryClient.getQueryState(['framework', effectiveFramework])?.status === 'success';
+    if (effectiveFramework && frameworkDataReady) {
       const currentCodes = categoryCodesForFramework(effectiveFramework);
       for (const code of allKnownFrameworkCategoryCodes()) {
         if (!currentCodes.has(code)) {
-          // Empirically board=[] clears it (no longer flagged); board=''
-          // does NOT — the backend still rejects an empty *string* for it
-          // ("board range data is empty from the given framework") even
-          // though medium/gradeLevel/subject clear fine as []. Always use
-          // [] here rather than guessing scalar-vs-array per field.
           rootEntry.metadata[code] = [];
         }
       }

@@ -14,7 +14,7 @@ import { useFramework, allKnownFrameworkCategoryCodes } from '../../hooks/useFra
 import { useQuestionRead } from '../../hooks/useQuestionRead';
 import { useLabels } from '../../hooks/useLabels';
 import { searchFrameworks } from '../../api/framework';
-import SparkMetaForm, { fieldMatchesSection, SingleSelectDropdown } from '../SparkMetaForm/SparkMetaForm';
+import SparkMetaForm, { fieldMatchesSection, SingleSelectDropdown, adaptFieldsForFramework } from '../SparkMetaForm/SparkMetaForm';
 import formStyles from '../SparkMetaForm/SparkMetaForm.module.scss';
 import QuestionDetail from '../QuestionDetail/QuestionDetail';
 
@@ -230,10 +230,14 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
   // "meta" is always read-only too (question fields are authored inside the
   // question editor itself, not here).
   const tabHasRequiredField = useCallback(
-    (tab: TabDef): boolean =>
-      !isCurrentNodeQuestion &&
-      (formConfig ?? []).some((f) => f.visible && f.required && fieldMatchesSection(f, tab.section)),
-    [isCurrentNodeQuestion, formConfig],
+    (tab: TabDef): boolean => {
+      if (isCurrentNodeQuestion) return false;
+      const fields = isCurrentNodeRoot
+        ? adaptFieldsForFramework(formConfig ?? [], frameworkTerms, categoryOrder, isCurrentNodeRoot)
+        : (formConfig ?? []);
+      return fields.some((f) => f.visible && f.required && fieldMatchesSection(f, tab.section));
+    },
+    [isCurrentNodeQuestion, formConfig, isCurrentNodeRoot, frameworkTerms, categoryOrder],
   );
 
   // Meta subtitle

@@ -186,7 +186,7 @@ function SolutionBlock() {
           type="button"
           onClick={() => {
             clearSolution();
-            telemetryInteract('delete_solution', { subtype: 'cancel', extra: { solution_type: kind } });
+            telemetryInteract('delete_solution', { subtype: 'submit', extra: { solution_type: kind } });
           }}
           title={L('ui.remove', 'Remove')}
           style={{ marginInlineStart: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--sb-text-faint)', display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8 }}>

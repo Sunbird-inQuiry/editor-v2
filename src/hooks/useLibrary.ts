@@ -49,8 +49,8 @@ async function loadLibrary(
     // questionset they were copied into — never independently discoverable.
     const { isCopy } = useCopyRegistryStore.getState();
     const filtered = content.filter((item) => !isCopy(item.identifier));
-    if (reset) state.setContent(filtered, count);
-    else state.appendContent(filtered, count);
+    if (reset) state.setContent(filtered, count, content.length);
+    else state.appendContent(filtered, count, content.length);
   } catch (e) {
     console.error('[useLibrary] load error:', e);
   } finally {
