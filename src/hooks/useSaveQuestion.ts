@@ -35,7 +35,7 @@ import { applyContentI18n } from '../utils/i18nSerialize';
 import { resolveQuestionType } from '../registry';
 import { htmlToText } from '../utils/html';
 import { queryClient } from '../queryClient';
-import { resolveTargetFrameworkIds } from './useFramework';
+import { resolveTargetFrameworkIds, allKnownFrameworkCategoryCodes } from './useFramework';
 import type { IFramework } from '../types/framework';
 
 // VersionKeyValidator.scala throws this exact message (ClientException,
@@ -503,20 +503,39 @@ export function buildLiveQuestionMeta(): { questionName: string; questionMeta: R
     // own metadata via useSaveHierarchy's cleanMetadata() — replicate the
     // same attachment here so a question explicitly given its own category
     // terms (picked in the question's own Details form) actually reaches
-    // the backend instead of staying only in treeCache. The static K-12
-    // codes cover a childForm with no framework chosen; once THIS question
-    // has its own framework, that framework's own categories (org AND
-    // target — see resolveCategoryCodesForFramework) are swept in too, so
-    // the field list always matches whatever categories that framework
-    // actually has instead of a fixed K-12 guess.
-    const STATIC_CATEGORY_FIELDS = ['board', 'medium', 'gradeLevel', 'subject', 'audience', 'topic', 'keywords', 'language'];
+    // the backend instead of staying only in treeCache.
+    //
+    // GENERIC_TAXONOMY_FIELDS aren't tied to any framework's own category
+    // list — always swept in when present. The K-12 fallback only applies
+    // once no framework is known at all (childForm with nothing chosen
+    // yet); once a framework IS resolved, only ITS OWN categories (org AND
+    // target — see resolveCategoryCodesForFramework) are valid — e.g.
+    // sending board/medium/gradeLevel/subject alongside framework:"USF"
+    // makes the backend reject the whole create/update, since USF doesn't
+    // define those categories at all.
+    const GENERIC_TAXONOMY_FIELDS = ['audience', 'topic', 'keywords', 'language'];
+    const K12_FALLBACK_CATEGORY_FIELDS = ['board', 'medium', 'gradeLevel', 'subject'];
     const frameworkCategoryCodes = framework ? resolveCategoryCodesForFramework(framework) : [];
-    const categoryFields = new Set([...STATIC_CATEGORY_FIELDS, ...frameworkCategoryCodes]);
+    const categoryFields = new Set([
+      ...GENERIC_TAXONOMY_FIELDS,
+      ...(frameworkCategoryCodes.length ? frameworkCategoryCodes : K12_FALLBACK_CATEGORY_FIELDS),
+    ]);
     const detailMeta = { ...(useTreeStore.getState().getNodeById(selectedNodeId)?.metadata ?? {}), ...formMeta };
     for (const field of categoryFields) {
       const v = detailMeta[field];
       if (v === undefined) continue;
       taxonomy[field] = Array.isArray(v) ? v : (v != null && v !== '' ? [v] : []);
+    }
+    // Explicitly clear (not omit) any category left over from a framework
+    // this question has since moved away from — an UPDATE is a PATCH
+    // against the already-stored question, so simply omitting a stale
+    // field leaves its old value in place server-side (same fix as
+    // useSaveHierarchy.ts's stale-category sweep; harmless no-op on create,
+    // since there's nothing stored yet to leave behind).
+    if (frameworkCategoryCodes.length) {
+      for (const code of allKnownFrameworkCategoryCodes()) {
+        if (!frameworkCategoryCodes.includes(code)) taxonomy[code] = [];
+      }
     }
 
     const questionMeta: Record<string, unknown> = {
