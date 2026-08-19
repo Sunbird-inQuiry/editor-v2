@@ -135,10 +135,6 @@
   --sbx-radius-lg:     var(--r-md,  8px);
   --sbx-radius-xl:     var(--r-lg, 12px);
   --sbx-radius-2xl:    var(--r-xl, 16px);
-  // No portal token beyond --r-xl exists to anchor this to — reusing
-  // --r-xl (like 2xl above) would collapse both tiers to the same value
-  // the moment a portal defines --r-xl, losing the 16px/24px distinction.
-  // Fixed value instead of a var() fallback that would never resolve.
   --sbx-radius-3xl:    24px;
   --sbx-radius-full:   var(--r-pill, 9999px);
 

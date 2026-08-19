@@ -42,11 +42,6 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   offset: 0,
   sortAZ: false,
 
-  // offset tracks how many items the SERVER has actually returned so far
-  // (rawCount), not content.length — content is already copy-filtered
-  // (see useLibrary.ts), and deriving the next page's offset from the
-  // filtered count would under-count whenever any copies were excluded,
-  // making the next fetch re-request (and duplicate) items already seen.
   setContent: (content, total, rawCount) => {
     set({ allContent: content, totalCount: total, offset: rawCount });
     get().applyFilter();

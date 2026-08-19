@@ -232,13 +232,6 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
   const tabHasRequiredField = useCallback(
     (tab: TabDef): boolean => {
       if (isCurrentNodeQuestion) return false;
-      // adaptFieldsForFramework can synthesize brand-new required: true
-      // category fields for the selected framework (e.g. Industry/Domain/
-      // Skill for a USF-style framework) that never exist in formConfig
-      // itself — check against the same adapted list SparkMetaForm renders
-      // so this indicator doesn't under-report. Root-only: a section has no
-      // Audience & Curriculum tab to synthesize fields into (matches
-      // useValidateAndSave.ts's same isRoot guard).
       const fields = isCurrentNodeRoot
         ? adaptFieldsForFramework(formConfig ?? [], frameworkTerms, categoryOrder, isCurrentNodeRoot)
         : (formConfig ?? []);
