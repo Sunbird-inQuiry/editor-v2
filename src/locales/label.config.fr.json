@@ -237,6 +237,7 @@
       "alreadyInSet": "Cette question figure déjà dans l'ensemble",
       "maxDepth": "Impossible d'ajouter ici — profondeur maximale atteinte",
       "attachFailed": "Impossible d'ajouter cette question — veuillez réessayer",
+      "saveBusy": "Un enregistrement est encore en cours — veuillez réessayer dans un instant",
       "copyFailed": "Impossible de copier cette question — veuillez réessayer",
       "copyPublishFailed": "Copiée, mais impossible de la publier — elle reste en brouillon.",
       "republishFailed": "Question enregistrée, mais impossible de la publier — cette modification reste masquée tant qu'elle n'est pas republiée.",

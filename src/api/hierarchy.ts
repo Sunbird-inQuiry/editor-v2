@@ -110,25 +110,62 @@ export async function updateHierarchy(
   };
 }
 
-/** `PATCH questionset/v2/add` — attaches existing questions to a section; appends after maxIndex. */
+/**
+ * Guards the one falsy value that must NOT be read as "target the root". Only `null` may mean the
+ * root; `''` is always a caller bug (an unresolved section id), and letting it through would send
+ * the operation to the root silently instead of erroring.
+ */
+function assertCollectionId(collectionId: string | null): void {
+  if (collectionId === '') {
+    throw new Error(
+      "collectionId must be a section id or null — '' would silently target the questionset root",
+    );
+  }
+}
+
+/**
+ * `PATCH questionset/v2/add` — attaches existing questions to a collection; appends after maxIndex.
+ * `collectionId` is the target section id, or `null` to attach directly to the root QuestionSet
+ * (the backend's root-attach path, used when there is no section).
+ *
+ * `''` is rejected rather than treated as `null`: omitting collectionId routes to the backend's
+ * root path, so an accidental empty string would silently operate on the root instead of failing
+ * loudly with "collectionId ... does not exist". Only an explicit `null` may mean "the root".
+ */
 export async function addQuestionsToSet(
   rootId: string,
-  collectionId: string,
+  collectionId: string | null,
   children: string[],
 ): Promise<void> {
+  assertCollectionId(collectionId);
+  const questionset: Record<string, unknown> = { rootId, children };
+  if (collectionId) questionset.collectionId = collectionId;
   await apiClient.patch(URLS.questionSet.add, {
-    request: { questionset: { rootId, collectionId, children } },
+    request: { questionset },
   });
 }
 
-/** `DELETE questionset/v2/remove` — detaches questions from a section (never retires them). */
+/**
+ * `DELETE questionset/v2/remove` — detaches questions from a collection (never retires them).
+ * `collectionId` is the section id, or `null` to detach a question that sits directly under the
+ * root (the backend's root-remove path). A root-level question's parent IS the root, so passing it
+ * as `collectionId` is rejected by the backend — pass `null` instead.
+ *
+ * `''` is rejected here for the same reason as in addQuestionsToSet, and the stakes are higher on
+ * this path: the backend's root-remove runs `childNodes.removeAll(children)` on the root
+ * unconditionally, so an empty string for a question that actually lives in a section would strip
+ * it from the questionset's childNodes while leaving it in the section — silent corruption.
+ */
 export async function removeQuestionsFromSet(
   rootId: string,
-  collectionId: string,
+  collectionId: string | null,
   children: string[],
 ): Promise<void> {
+  assertCollectionId(collectionId);
+  const questionset: Record<string, unknown> = { rootId, children };
+  if (collectionId) questionset.collectionId = collectionId;
   await apiClient.delete(URLS.questionSet.removeNode, {
-    data: { request: { questionset: { rootId, collectionId, children } } },
+    data: { request: { questionset } },
   });
 }
 

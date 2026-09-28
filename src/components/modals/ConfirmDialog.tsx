@@ -44,11 +44,19 @@ export const ConnectedConfirmDialog: React.FC = () => {
         if (visibility === 'Default') {
           // Standalone question — detach only. It may be reused in other
           // questionsets, so it must never be retired from here.
+          // A question directly under the root has the root as its parent,
+          // which is NOT a section: omit collectionId so the backend uses its
+          // root-remove path. Passing the root id as collectionId is rejected
+          // ("collectionId does not exist"), which would silently fail to
+          // detach.
           const treeData = useTreeStore.getState().treeData;
           const rootId = treeData[0]?.identifier;
-          const sectionId = node?.parent;
-          if (rootId && sectionId) {
-            try { await removeQuestionsFromSet(rootId, sectionId, [nodeId]); } catch { /* best-effort */ }
+          const rootNodeId = treeData[0]?.id;
+          const parentId = node?.parent;
+          const isRootLevel = parentId != null && parentId === rootNodeId;
+          const collectionId = isRootLevel ? null : (parentId ?? null);
+          if (rootId && (isRootLevel || parentId)) {
+            try { await removeQuestionsFromSet(rootId, collectionId, [nodeId]); } catch { /* best-effort */ }
           }
         } else {
           // Legacy Parent-visibility question — retire via API, same as old editor.

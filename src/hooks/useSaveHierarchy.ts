@@ -221,6 +221,22 @@ function buildSavePayload(
   return { nodesModified, hierarchy };
 }
 
+/**
+ * Outcome of a hierarchy save, for callers that need to tell the three cases
+ * apart rather than collapsing them into a boolean:
+ *  - `saved`         — the backend accepted the payload.
+ *  - `not-attempted` — no request went out (no editor config / content id, or
+ *                      another save was already in flight). Nothing was sent
+ *                      and nothing was reverted, so the caller still owns any
+ *                      optimistic change it made.
+ *  - `failed`        — the request went out and was rejected. save() has
+ *                      ALREADY surfaced an error toast and called
+ *                      revertToSaved(), which discards every unsaved change
+ *                      since the last successful save — including the
+ *                      caller's own. There is nothing left to roll back.
+ */
+export type SaveOutcome = 'saved' | 'not-attempted' | 'failed';
+
 export function useSaveHierarchy() {
   const [isSaving, setIsSaving] = useState(false);
   // Call-time in-flight guard — closure state is stale until React re-renders,
@@ -232,10 +248,10 @@ export function useSaveHierarchy() {
   const { setIsDirty, setLastSaved } = useEditorStore();
   const config = useEditorStore((s) => s.editorConfig);
 
-  const save = useCallback(async (): Promise<boolean> => {
-    if (!config || inFlight.current) return false;
+  const saveWithOutcome = useCallback(async (): Promise<SaveOutcome> => {
+    if (!config || inFlight.current) return 'not-attempted';
     const contentId = getContentId(config.context);
-    if (!contentId) return false;
+    if (!contentId) return 'not-attempted';
 
     const channel = config.context.channel ?? '';
     const lastUpdatedBy = getUserId(config.context);
@@ -286,7 +302,7 @@ export function useSaveHierarchy() {
       setLastSaved(new Date().toISOString());
       setIsDirty(false);
       useEditorStore.getState().eventHandlers.onHierarchySaved?.({ identifiers });
-      return true;
+      return 'saved';
     } catch (e) {
       console.error('[useSaveHierarchy] save failed:', e);
       notifyError(apiErrorMessage(e, label('messages.error.001', 'Failed to save. Please try again.')), e);
@@ -295,12 +311,18 @@ export function useSaveHierarchy() {
       // on the backend. Discard them instead of leaving them in the tree
       // looking saved.
       useTreeStore.getState().revertToSaved();
-      return false;
+      return 'failed';
     } finally {
       inFlight.current = false;
       setIsSaving(false);
     }
   }, [config, setIsDirty, setLastSaved]);
 
-  return { save, isSaving, isDirty, lastSaved };
+  /** Boolean form — `false` covers both 'not-attempted' and 'failed'. */
+  const save = useCallback(
+    async (): Promise<boolean> => (await saveWithOutcome()) === 'saved',
+    [saveWithOutcome],
+  );
+
+  return { save, saveWithOutcome, isSaving, isDirty, lastSaved };
 }

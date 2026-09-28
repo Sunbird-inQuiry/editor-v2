@@ -237,6 +237,7 @@
       "alreadyInSet": "Esta pergunta já está no conjunto",
       "maxDepth": "Não é possível adicionar aqui — profundidade máxima atingida",
       "attachFailed": "Não foi possível adicionar esta pergunta — tente novamente",
+      "saveBusy": "Um salvamento ainda está em andamento — tente novamente em instantes",
       "copyFailed": "Não foi possível copiar esta pergunta — tente novamente",
       "copyPublishFailed": "Copiada, mas não foi possível publicá-la — permanece como rascunho.",
       "republishFailed": "Pergunta salva, mas não foi possível publicá-la — esta edição ficará oculta até ser republicada.",

@@ -252,6 +252,7 @@
       "alreadyInSet": "This question is already in the set",
       "maxDepth": "Cannot add here — maximum depth reached",
       "attachFailed": "Could not add this question — please try again",
+      "saveBusy": "Another save is still running — please try again in a moment",
       "copyFailed": "Could not copy this question — please try again",
       "copyPublishFailed": "Copied, but could not be published — it stays a Draft.",
       "republishFailed": "Question saved, but could not be published — this edit stays hidden until it's republished.",

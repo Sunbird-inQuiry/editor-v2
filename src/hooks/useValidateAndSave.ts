@@ -12,12 +12,16 @@ import { useFramework } from './useFramework';
 
 /**
  * Validates root + all sections' required fields (same check "Save as Draft"
- * runs), surfaces MissingRequiredFieldsModal via ui.store on failure, and
- * saves the hierarchy on success. Shared by the toolbar's Save-as-Draft and
- * OutlineTree's auto-save-on-click (Add Section / Add Question).
+ * runs) and surfaces MissingRequiredFieldsModal via ui.store on failure.
+ * Purely local — never touches the network and never mutates the tree.
+ *
+ * Split out from useValidateAndSave so a caller can tell "the form isn't
+ * complete, so nothing was attempted" apart from "the save itself failed".
+ * useValidateAndSave collapses both into a single `false`, which is fine for
+ * validate-then-mutate callers but not for anything that has to decide
+ * whether there is something to roll back.
  */
-export function useValidateAndSave() {
-  const { save } = useSaveHierarchy();
+export function useValidateRequiredFields(): () => boolean {
   const setMissingFieldGroups = useUiStore((s) => s.setMissingFieldGroups);
   // Same framework the root's own Audience & Curriculum tab resolves —
   // required here so "missing required fields" is checked against the
@@ -27,7 +31,7 @@ export function useValidateAndSave() {
   // framework (CBSE, NCF, ...) that doesn't even have those categories.
   const { frameworkTerms, categoryOrder } = useFramework();
 
-  const validateAndSave = useCallback(async (): Promise<boolean> => {
+  const validateRequiredFields = useCallback((): boolean => {
     const { rootFormConfig, unitFormConfig } = useEditorStore.getState();
     const { treeData, treeCache } = useTreeStore.getState();
 
@@ -85,12 +89,37 @@ export function useValidateAndSave() {
       return false;
     }
 
+    return true;
+  }, [setMissingFieldGroups, frameworkTerms, categoryOrder]);
+
+  return validateRequiredFields;
+}
+
+/**
+ * Required-field check followed by a hierarchy save. Shared by the toolbar's
+ * Save-as-Draft and OutlineTree's auto-save-on-click (Add Section / Add
+ * Question).
+ *
+ * NOTE for callers: `false` means EITHER "required fields are missing, so no
+ * save was attempted" OR "the save failed". Only use this where those two
+ * warrant the same handling — i.e. validate-then-mutate, with nothing done
+ * yet that would need undoing. If you have already mutated the tree or
+ * created a backend object, use useValidateRequiredFields() up front and
+ * useSaveHierarchy().saveWithOutcome() afterwards instead.
+ */
+export function useValidateAndSave() {
+  const { save } = useSaveHierarchy();
+  const validateRequiredFields = useValidateRequiredFields();
+
+  const validateAndSave = useCallback(async (): Promise<boolean> => {
+    if (!validateRequiredFields()) return false;
+
     // Skip the network round-trip when nothing is actually dirty (e.g.
     // rapidly adding several sections/questions in a row).
     if (!useEditorStore.getState().isDirty) return true;
 
     return save();
-  }, [save, setMissingFieldGroups, frameworkTerms, categoryOrder]);
+  }, [save, validateRequiredFields]);
 
   return validateAndSave;
 }

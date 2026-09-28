@@ -16,6 +16,8 @@ import { persist } from 'zustand/middleware';
 interface CopyRegistryState {
   copiedIds: Record<string, true>;
   markAsCopy: (identifier: string) => void;
+  /** Undo markAsCopy — for a copy that was rolled back and no longer exists. */
+  unmarkAsCopy: (identifier: string) => void;
   isCopy: (identifier: string) => boolean;
 }
 
@@ -25,6 +27,11 @@ export const useCopyRegistryStore = create<CopyRegistryState>()(
       copiedIds: {},
       markAsCopy: (identifier) =>
         set((state) => ({ copiedIds: { ...state.copiedIds, [identifier]: true } })),
+      unmarkAsCopy: (identifier) =>
+        set((state) => {
+          const { [identifier]: _removed, ...rest } = state.copiedIds;
+          return { copiedIds: rest };
+        }),
       isCopy: (identifier) => !!get().copiedIds[identifier],
     }),
     { name: 'sb-editor-copied-questions' },
