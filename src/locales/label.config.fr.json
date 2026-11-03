@@ -254,9 +254,7 @@
       "dynamicAssessTooManySkills": "Compétences sélectionnées : {COUNT}. L’objectif de difficulté doit totaliser au moins {NEEDED} (chaque compétence reçoit au moins {MIN} questions). Augmentez l’objectif ou retirez une compétence.",
       "dynamicAssessSkillLevels": "Pas assez de questions aux niveaux de difficulté choisis pour : {SKILLS}. Chaque compétence doit pouvoir fournir au moins {MIN} questions à ces niveaux.",
       "dynamicAssessSavedNotGenerated": "Enregistré, mais les questions n’ont pas été régénérées : {REASON}",
-      "dynamicAssessPendingSave": "Les questions sont encore en cours de génération. Rouvrez cet ensemble de questions avant d’enregistrer.",
-      "dynamicAssessStopped": "Attente des questions interrompue. La génération peut encore se terminer en arrière-plan ; rouvrez cet ensemble de questions dans un instant pour les voir.",
-      "dynamicAssessCancelled": "Génération annulée. Aucune question n’a été générée."
+      "dynamicAssessPendingSave": "Les questions sont encore en cours de génération. Rouvrez cet ensemble de questions avant d’enregistrer."
     },
     "success": {
       "001": "Contenu sauvegardé",
@@ -489,8 +487,7 @@
     "dynamicAssessExampleHide": "Masquer",
     "dynamicAssessExampleIntro": "Exemple : vous choisissez 2 compétences et demandez {N} faciles, {N} moyennes et {N} difficiles.",
     "dynamicAssessExampleTotal": "Chaque apprenant reçoit {TOTAL} questions.",
-    "dynamicAssessExampleEach": "Au moins {MIN} questions viendront de chaque compétence.",
-    "dynamicAssessCancelGenerating": "Annuler"
+    "dynamicAssessExampleEach": "Au moins {MIN} questions viendront de chaque compétence."
   },
   "categoryLabels": {
     "Multiselect Multiple Choice Question": "Question à choix multiple",

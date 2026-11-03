@@ -10,8 +10,8 @@ import { label, resolveUiLanguage } from '../utils/labels';
 import { apiErrorMessage, notifyError, notifySuccess } from '../utils/notify';
 import { toDifficultyTarget } from '../utils/difficultyTarget';
 import {
-  checkPool, deepestCategoryCode, fetchFramework, generateAndWait, generationCancelledMessage, generationPendingMessage, generationStoppedMessage,
-  shouldPauseAfterPending, skillPoolErrorMessage, startEditorSession, stopRequestedCheck,
+  checkPool, deepestCategoryCode, fetchFramework, generateAndWait, generationPendingMessage,
+  shouldPauseAfterPending, skillPoolErrorMessage, startEditorSession,
 } from './useRefreshQuestionSetBody';
 import { dynamicAssessSettings, selectedSkills } from '../utils/dynamicAssessDraw';
 import type { INode } from '../types/editor';
@@ -50,7 +50,6 @@ export function useEditorInit({ config, onError }: UseEditorInitOptions) {
       if (cancelled || !skills.length) return;
 
       const { setButtonLoader } = useEditorStore.getState();
-      const isStopped = stopRequestedCheck();
       setButtonLoader('refreshBody', true);
       try {
         // Same pool check as Save & Generate, so settings the job can't fill don't block every open for the whole poll.
@@ -65,17 +64,16 @@ export function useEditorInit({ config, onError }: UseEditorInitOptions) {
         if (problems.length) { notifyError(problems.join(' ')); return; }
 
         const { result, rootNode } = await generateAndWait(
-          { contentId, refresh: refreshQuestionSetBody, read: readHierarchy, isCancelled: () => cancelled, isStopped }, baselineRoot,
+          { contentId, refresh: refreshQuestionSetBody, read: readHierarchy, isCancelled: () => cancelled }, baselineRoot,
         );
-        if (cancelled) return;
-        if (result === 'cancelled') { if (isStopped()) notifyError(generationCancelledMessage()); return; }
+        if (cancelled || result === 'cancelled') return;
         if (result === 'generated') {
           if (rootNode) { setTreeData([rootNode]); selectNode(rootNode.id); }
           notifySuccess(label('messages.success.dynamicAssessRefresh', 'Questions generated'));
         } else {
           // The editor still holds the empty tree, so saving stays allowed (it would generate); pausing would lock the author out on every open.
           if (shouldPauseAfterPending(useTreeStore.getState().treeData[0])) setButtonLoader('refreshPending', true);
-          notifyError(result === 'stopped' ? generationStoppedMessage() : generationPendingMessage());
+          notifyError(generationPendingMessage());
         }
       } catch (err) {
         if (!cancelled) notifyError(skillPoolErrorMessage(err) ?? apiErrorMessage(err, label('messages.error.dynamicAssessInit', 'Failed to generate questions for this question set.')), err);

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   saveThenGenerate, generateAndWait, poolProblems, deepestCategoryCode, skillShortfalls, skillPoolErrorMessage,
-  startEditorSession, sessionCancelledCheck, shouldPauseAfterPending, belowSkillMinimum, stopRequestedCheck, stopWaitingForGeneration,
+  startEditorSession, sessionCancelledCheck, shouldPauseAfterPending, belowSkillMinimum,
 } from './useRefreshQuestionSetBody';
 import type { INode } from '../types/editor';
 import type { IFramework } from '../types/framework';
@@ -246,25 +246,6 @@ describe('generateAndWait robustness', () => {
     const out = await generateAndWait({ contentId: 'do_root', refresh, read: vi.fn(), sleep: noSleep, isCancelled: () => true }, root([]).rootNode);
     expect(out.result).toBe('cancelled');
     expect(refresh).not.toHaveBeenCalled();
-  });
-});
-
-describe('Cancel on the generating overlay', () => {
-  it('stops waiting for a queued job and reports it as stopped, like a timeout (positive)', async () => {
-    const isStopped = stopRequestedCheck();
-    const read = vi.fn(async () => { stopWaitingForGeneration(); return root(['old'], 't0'); });
-    const out = await generateAndWait({ contentId: 'do_root', refresh: async () => {}, read, sleep: noSleep, isStopped }, root(['old'], 't0').rootNode);
-    expect(out.result).toBe('stopped');
-    expect(read).toHaveBeenCalledTimes(1);
-  });
-
-  it('queues nothing when Cancel came before refresh-body, and only affects generations started earlier (negative)', async () => {
-    const isStopped = stopRequestedCheck();
-    stopWaitingForGeneration();
-    const refresh = vi.fn(async () => {});
-    expect((await generateAndWait({ contentId: 'do_root', refresh, read: vi.fn(), sleep: noSleep, isStopped }, root([]).rootNode)).result).toBe('cancelled');
-    expect(refresh).not.toHaveBeenCalled();
-    expect(stopRequestedCheck()()).toBe(false);
   });
 });
 

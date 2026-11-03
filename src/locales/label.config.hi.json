@@ -67,8 +67,7 @@
     "dynamicAssessExampleHide": "छिपाएँ",
     "dynamicAssessExampleIntro": "उदाहरण: आप 2 कौशल चुनते हैं और {N} आसान, {N} मध्यम और {N} कठिन माँगते हैं।",
     "dynamicAssessExampleTotal": "हर शिक्षार्थी को {TOTAL} प्रश्न मिलते हैं।",
-    "dynamicAssessExampleEach": "हर कौशल से कम से कम {MIN} प्रश्न आएँगे।",
-    "dynamicAssessCancelGenerating": "रद्द करें"
+    "dynamicAssessExampleEach": "हर कौशल से कम से कम {MIN} प्रश्न आएँगे।"
   },
   "messages": {
     "error": {
@@ -84,9 +83,7 @@
       "dynamicAssessTooManySkills": "चुने गए कौशल: {COUNT}। कठिनाई लक्ष्य का योग कम से कम {NEEDED} होना चाहिए (प्रत्येक कौशल को कम से कम {MIN} प्रश्न मिलते हैं)। लक्ष्य बढ़ाएं या कोई कौशल हटाएं।",
       "dynamicAssessSkillLevels": "चुने गए कठिनाई स्तरों पर इनके लिए पर्याप्त प्रश्न नहीं हैं: {SKILLS}। प्रत्येक कौशल को इन स्तरों पर कम से कम {MIN} प्रश्न देने होंगे।",
       "dynamicAssessSavedNotGenerated": "सहेजा गया, लेकिन प्रश्न फिर से तैयार नहीं हुए: {REASON}",
-      "dynamicAssessPendingSave": "प्रश्न अभी तैयार हो रहे हैं। सहेजने से पहले यह प्रश्न-सेट फिर से खोलें।",
-      "dynamicAssessStopped": "प्रश्नों की प्रतीक्षा रोक दी गई। प्रश्न तैयार होना पृष्ठभूमि में अब भी पूरा हो सकता है; उन्हें देखने के लिए कुछ देर बाद यह प्रश्न-सेट फिर से खोलें।",
-      "dynamicAssessCancelled": "प्रश्न तैयार करना रद्द किया गया। कोई प्रश्न तैयार नहीं हुआ।"
+      "dynamicAssessPendingSave": "प्रश्न अभी तैयार हो रहे हैं। सहेजने से पहले यह प्रश्न-सेट फिर से खोलें।"
     },
     "success": {
       "dynamicAssessRefresh": "प्रश्न तैयार हो गए"

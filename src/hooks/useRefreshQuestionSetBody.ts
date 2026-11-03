@@ -89,8 +89,7 @@ export function deepestCategoryCode(framework: IFramework | undefined): string {
 export const GENERATE_POLL_MS = 3000;
 export const GENERATE_POLL_MAX_ATTEMPTS = 40;
 
-/** 'stopped': the author pressed Cancel after the job was queued, so it may still write, like 'pending'. */
-export type GenerateResult = 'generated' | 'pending' | 'stopped' | 'failed' | 'cancelled';
+export type GenerateResult = 'generated' | 'pending' | 'failed' | 'cancelled';
 
 export interface GenerateDeps {
   contentId: string;
@@ -102,8 +101,6 @@ export interface GenerateDeps {
   maxAttempts?: number;
   /** True once the editor that started this generation has closed or reloaded; the wait then stops without touching the shared stores. */
   isCancelled?: () => boolean;
-  /** True once the author pressed the overlay's Cancel; nothing is queued after it, and a queued job is no longer waited for. */
-  isStopped?: () => boolean;
 }
 
 let editorSession = 0;
@@ -119,29 +116,8 @@ export function sessionCancelledCheck(): () => boolean {
   return () => editorSession !== session;
 }
 
-let stopRequests = 0;
-
-/** The generating overlay's Cancel: stops waiting for the current generation; the job itself keeps running server-side. */
-export function stopWaitingForGeneration(): void {
-  stopRequests += 1;
-}
-
-/** Check for a generation started now: true once Cancel has been pressed since. */
-export function stopRequestedCheck(): () => boolean {
-  const requests = stopRequests;
-  return () => stopRequests !== requests;
-}
-
 export function generationPendingMessage(): string {
   return label('messages.error.dynamicAssessPending', 'Questions haven\'t appeared yet. Generation may still be running, or it may have failed (for example, too few questions for a skill). Reopen this question set in a moment, or check the pool and try again.');
-}
-
-export function generationStoppedMessage(): string {
-  return label('messages.error.dynamicAssessStopped', 'Stopped waiting for questions. Generation may still finish in the background; reopen this question set in a moment to see them.');
-}
-
-export function generationCancelledMessage(): string {
-  return label('messages.error.dynamicAssessCancelled', 'Generation cancelled. No questions were generated.');
 }
 
 /** Whether a timed-out generation must pause saving, given the tree the editor would save: only children it could write back over the job's result need it. */
@@ -186,16 +162,14 @@ export async function generateAndWait(
   const pollMs = deps.pollMs ?? GENERATE_POLL_MS;
   const maxAttempts = deps.maxAttempts ?? GENERATE_POLL_MAX_ATTEMPTS;
   const cancelled = deps.isCancelled ?? (() => false);
-  const stopped = deps.isStopped ?? (() => false);
   const baseline = snapshot(baselineRoot);
-  if (cancelled() || stopped()) return { result: 'cancelled' };
+  if (cancelled()) return { result: 'cancelled' };
   await deps.refresh(deps.contentId);
 
   let latest: INode | undefined;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     await sleep(pollMs);
     if (cancelled()) return { result: 'cancelled' };
-    if (stopped()) return { result: 'stopped', rootNode: latest };
     // A failed read (e.g. a network blip) is retried on the next attempt; giving up here would unblock saving mid-write.
     let current: INode | undefined;
     try { current = (await deps.read(deps.contentId)).rootNode; } catch { continue; }
@@ -233,7 +207,6 @@ export function useRefreshQuestionSetBody() {
     if (!validateRequiredFields()) return false;
 
     const isCancelled = sessionCancelledCheck();
-    const isStopped = stopRequestedCheck();
     setButtonLoader('refreshBody', true);
     const blocked = async (reason: string): Promise<boolean> => {
       if (opts.saveIfBlocked && (await saveWithOutcome()) === 'saved') {
@@ -279,12 +252,10 @@ export function useRefreshQuestionSetBody() {
       }
       if (isCancelled()) return false;
       if (problems.length) return await blocked(problems.join(' '));
-      if (isStopped()) { notifyError(generationCancelledMessage()); return false; }
 
       const { result, rootNode } = await saveThenGenerate({
-        contentId, save: saveWithOutcome, refresh: refreshQuestionSetBody, read: readHierarchy, isCancelled, isStopped,
+        contentId, save: saveWithOutcome, refresh: refreshQuestionSetBody, read: readHierarchy, isCancelled,
       });
-      if (result === 'cancelled' && isStopped() && !isCancelled()) notifyError(generationCancelledMessage());
       if (result === 'failed' || result === 'cancelled') return false;
       if (result === 'generated') {
         if (rootNode) setTreeData([rootNode]);
@@ -293,7 +264,7 @@ export function useRefreshQuestionSetBody() {
       }
       // The job may be mid-write (old + new children): keep that tree out of the editor and pause saving until it's reopened, unless there's nothing a save could write back.
       if (shouldPauseAfterPending(useTreeStore.getState().treeData[0])) setButtonLoader('refreshPending', true);
-      notifyError(result === 'stopped' ? generationStoppedMessage() : generationPendingMessage());
+      notifyError(generationPendingMessage());
       return false;
     } catch (err) {
       console.error('[useRefreshQuestionSetBody] refresh failed', err);

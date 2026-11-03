@@ -19,8 +19,7 @@ import type { INode } from '../../types/editor';
 import styles from './QumlPlayer.module.scss';
 import { useLabels } from '../../hooks/useLabels';
 import { detectNodeKind } from '../../utils/nodeKind';
-import { getUserId, isDynamicAssessQuestionSet, resolvePrimaryCategory } from '../../utils/context';
-import { withDynamicDraw } from '../../utils/dynamicAssessDraw';
+import { isDynamicAssessQuestionSet, resolvePrimaryCategory } from '../../utils/context';
 
 const PLAYER_TAG = 'sunbird-quml-player';
 const DEFAULT_PLAYER_SCRIPT = '/assets/sunbird-quml-player.js';
@@ -144,14 +143,14 @@ const QumlPlayer: React.FC<QumlPlayerProps> = ({ questionSetId, singleQuestionId
           if (singleQuestionId) {
             metadata = nodeToHierarchy(treeData[0], treeCache);
           } else {
-            // A Dynamic QuestionSet previews the user's own draw, never the whole pool.
-            const root = withDynamicDraw(treeData[0], treeCache, getUserId(editorConfig?.context), editorConfig?.config?.primaryCategory as string | undefined);
+            // A Dynamic QuestionSet previews its whole pool, so the creator and reviewer see every question; learners get their own draw in the portal.
+            const root = treeData[0];
             const questionIds = collectQuestionIds(root.children ?? []);
             const hydrated = new Map<string, Record<string, unknown>>();
+            const isDynamic = isDynamicAssessQuestionSet(resolvePrimaryCategory(editorConfig?.config?.primaryCategory as string | undefined, treeData[0]));
             if (questionIds.length) {
               try {
-                // question/list accepts at most 20 ids per request, so a Dynamic draw larger than that is fetched in batches; other sets keep the single request.
-                const isDynamic = isDynamicAssessQuestionSet(resolvePrimaryCategory(editorConfig?.config?.primaryCategory as string | undefined, treeData[0]));
+                // question/list accepts at most 20 ids per request, so a Dynamic pool larger than that is fetched in batches; other sets keep the single request.
                 const batches = isDynamic
                   ? Array.from({ length: Math.ceil(questionIds.length / QUESTION_LIST_LIMIT) }, (_, i) => questionIds.slice(i * QUESTION_LIST_LIMIT, (i + 1) * QUESTION_LIST_LIMIT))
                   : [questionIds];
@@ -162,25 +161,8 @@ const QumlPlayer: React.FC<QumlPlayerProps> = ({ questionSetId, singleQuestionId
               } catch { /* fall back to whatever's already in the tree */ }
             }
             metadata = nodeToHierarchy(root, treeCache, hydrated);
-            // The saved root lists and scores the whole pool; the preview must match the drawn set, as the portal player does.
-            if (root !== treeData[0]) {
-              const drawn = (metadata.children as Record<string, unknown>[]) ?? [];
-              const scoreOf = (q: Record<string, unknown>) =>
-                Number((q.outcomeDeclaration as { maxScore?: { defaultValue?: unknown } } | undefined)?.maxScore?.defaultValue ?? q.maxScore) || 1;
-              const maxScore = drawn.reduce((sum, q) => sum + scoreOf(q), 0);
-              const rootOutcome = (metadata.outcomeDeclaration ?? {}) as Record<string, unknown>;
-              metadata = {
-                ...metadata,
-                childNodes: drawn.map((q) => q.identifier),
-                // Otherwise the player would sub-select again and the preview wouldn't match the learner's draw.
-                ...(metadata.maxQuestions ? { maxQuestions: drawn.length } : {}),
-                maxScore,
-                outcomeDeclaration: {
-                  ...rootOutcome,
-                  maxScore: { cardinality: 'single', type: 'integer', ...((rootOutcome.maxScore as Record<string, unknown>) ?? {}), defaultValue: maxScore },
-                },
-              };
-            }
+            // The player sub-selects maxQuestions, so a Dynamic preview raises it to the pool size to show every question; saved metadata is unchanged.
+            if (isDynamic && metadata.maxQuestions) metadata = { ...metadata, maxQuestions: questionIds.length };
           }
         }
 

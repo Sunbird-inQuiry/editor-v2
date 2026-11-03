@@ -254,9 +254,7 @@
       "dynamicAssessTooManySkills": "Habilidades selecionadas: {COUNT}. A Meta de dificuldade deve somar pelo menos {NEEDED} (cada habilidade recebe pelo menos {MIN} questões). Aumente a meta ou remova uma habilidade.",
       "dynamicAssessSkillLevels": "Não há questões suficientes nos níveis de dificuldade escolhidos para: {SKILLS}. Cada habilidade precisa fornecer pelo menos {MIN} questões nesses níveis.",
       "dynamicAssessSavedNotGenerated": "Salvo, mas as questões não foram geradas novamente: {REASON}",
-      "dynamicAssessPendingSave": "As questões ainda estão sendo geradas. Reabra este conjunto de questões antes de salvar.",
-      "dynamicAssessStopped": "Parou de aguardar as questões. A geração ainda pode terminar em segundo plano; reabra este conjunto de questões em instantes para vê-las.",
-      "dynamicAssessCancelled": "Geração cancelada. Nenhuma questão foi gerada."
+      "dynamicAssessPendingSave": "As questões ainda estão sendo geradas. Reabra este conjunto de questões antes de salvar."
     },
     "success": {
       "001": "Conteúdo salvo",
@@ -489,8 +487,7 @@
     "dynamicAssessExampleHide": "Ocultar",
     "dynamicAssessExampleIntro": "Exemplo: você escolhe 2 habilidades e pede {N} fáceis, {N} médias e {N} difíceis.",
     "dynamicAssessExampleTotal": "Cada aluno recebe {TOTAL} questões.",
-    "dynamicAssessExampleEach": "No mínimo {MIN} questões virão de cada habilidade.",
-    "dynamicAssessCancelGenerating": "Cancelar"
+    "dynamicAssessExampleEach": "No mínimo {MIN} questões virão de cada habilidade."
   },
   "categoryLabels": {
     "Multiselect Multiple Choice Question": "Pergunta de Múltipla Escolha",

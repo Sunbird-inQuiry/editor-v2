@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickForLearner, withDynamicDraw, isGenerationStale, isGenerationComplete, needsGeneration, selectedSkills, dynamicAssessSettings } from './dynamicAssessDraw';
+import { isGenerationStale, isGenerationComplete, needsGeneration, selectedSkills, dynamicAssessSettings } from './dynamicAssessDraw';
 import type { INode } from '../types/editor';
 
 const q = (id: string, level: string): INode => ({ id, identifier: id, name: id, isQuestion: true, metadata: { difficultyLevel: level } });
@@ -8,60 +8,6 @@ const root = (children: INode[], target: unknown = { E: 1, M: 2, D: 0 }): INode 
 });
 // Target E1 M2 D0 generated at the default multiplier 2 -> 2 Easy + 4 Medium children.
 const pool = [...['e0', 'e1'].map((i) => q(i, 'EASY')), ...['m0', 'm1', 'm2', 'm3'].map((i) => q(i, 'MEDIUM'))];
-
-describe('withDynamicDraw', () => {
-  it("shows only the user's target-sized draw per level, the same every time (positive)", () => {
-    const shown = withDynamicDraw(root(pool), {}, 'u1').children ?? [];
-    expect(shown.filter((c) => c.metadata?.difficultyLevel === 'EASY')).toHaveLength(1);
-    expect(shown.filter((c) => c.metadata?.difficultyLevel === 'MEDIUM')).toHaveLength(2);
-    expect(withDynamicDraw(root(pool), {}, 'u1').children).toEqual(shown);
-  });
-
-  it('draws the same set the portal player gives this user (shared seed format)', () => {
-    const shownMedium = (withDynamicDraw(root(pool), {}, 'u1').children ?? []).filter((c) => c.metadata?.difficultyLevel === 'MEDIUM').map((c) => c.identifier).sort();
-    expect(shownMedium).toEqual(pickForLearner(['m0', 'm1', 'm2', 'm3'], 2, 'u1:do_qs:MEDIUM').sort());
-  });
-
-  it('prefers treeCache edits for the target and leaves the stored children untouched', () => {
-    const r = root(pool);
-    const shown = withDynamicDraw(r, { do_qs: { difficultyTarget: '{"E":0,"M":1,"D":0}' } }, 'u1').children ?? [];
-    expect(shown).toHaveLength(1);
-    expect(r.children).toHaveLength(6);
-  });
-
-  it('leaves non-Dynamic sets unchanged (negative)', () => {
-    const plain = { ...root(pool), primaryCategory: 'Practice Question Set' };
-    expect(withDynamicDraw(plain, {}, 'u1')).toBe(plain);
-  });
-
-  it('shows nothing, never the pool, for a zero or invalid target (positive)', () => {
-    expect(withDynamicDraw(root(pool, { E: 0, M: 0, D: 0 }), {}, 'u1').children).toEqual([]);
-    expect(withDynamicDraw(root(pool, 'not json'), {}, 'u1').children).toEqual([]);
-  });
-
-  it('caps each level at its generated size when the target is raised without regenerating (positive)', () => {
-    // 2 Easy + 4 Medium were generated for E1 M2, so an unsaved E9 M9 still shows only 1 + 2.
-    const shown = withDynamicDraw(root(pool), { do_qs: { difficultyTarget: { E: 9, M: 9, D: 0 } } }, 'u1').children ?? [];
-    expect(shown.filter((c) => c.metadata?.difficultyLevel === 'EASY')).toHaveLength(1);
-    expect(shown.filter((c) => c.metadata?.difficultyLevel === 'MEDIUM')).toHaveLength(2);
-  });
-
-  it('shows nothing when a Dynamic root holds only sections (positive)', () => {
-    const section: INode = { id: 's1', identifier: 's1', name: 'Section', isFolder: true, children: pool };
-    expect(withDynamicDraw(root([section]), {}, 'u1').children).toEqual([]);
-  });
-
-  it('never shows non-question children such as sections (positive)', () => {
-    const section: INode = { id: 's1', identifier: 's1', name: 'Section', isFolder: true, children: pool };
-    expect(withDynamicDraw(root([...pool, section]), {}, 'u1').children?.some((c) => c.identifier === 's1')).toBe(false);
-  });
-});
-
-describe('draw golden vector (identical in generic-editor-v2 and the portal)', () => {
-  it('picks the same ids for a fixed seed in every copy', () => {
-    expect(pickForLearner(['q1', 'q2', 'q3', 'q4', 'q5', 'q6'], 2, 'user-1:do_123:EASY')).toEqual(['q6', 'q3']);
-  });
-});
 
 describe('isGenerationComplete', () => {
   it('is complete only at exactly target x 2 per level (positive)', () => {
@@ -213,12 +159,5 @@ describe("pool math uses the set's own multiplier", () => {
     expect(isGenerationStale({ ...withMultiplier(three, undefined), metadata: { difficultyTarget: { E: 1, M: 1, D: 0 } } }, {})).toBe(true);
     expect(isGenerationStale({ ...withMultiplier(three, undefined), metadata: { difficultyTarget: { E: 1, M: 2, D: 1 } } }, {})).toBe(true);
     expect(isGenerationStale({ ...withMultiplier(three, undefined), metadata: { difficultyTarget: { E: 2, M: 2, D: 0 } } }, {})).toBe(true);
-  });
-
-  it('caps each level of the draw at children / multiplier (positive)', () => {
-    // 12 Medium children hold 3 per learner at multiplier 4 but 6 at the default 2, so a target of 4 shows 3 vs 4.
-    const twelve: INode = { ...root(level('m', 'MEDIUM', 12)), metadata: { difficultyTarget: { E: 0, M: 4, D: 0 }, multiplier: 4 } };
-    expect(withDynamicDraw(twelve, {}, 'u1').children).toHaveLength(3);
-    expect(withDynamicDraw({ ...twelve, metadata: { difficultyTarget: { E: 0, M: 4, D: 0 } } }, {}, 'u1').children).toHaveLength(4);
   });
 });

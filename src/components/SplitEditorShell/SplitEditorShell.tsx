@@ -25,7 +25,7 @@ import { GeneratingOverlay } from '../shared/GeneratingOverlay';
 import { StaleSettingsBanner } from '../shared/StaleSettingsBanner';
 import { isGenerationStale, needsGeneration } from '../../utils/dynamicAssessDraw';
 import { useDynamicSkillField } from '../../hooks/useDynamicSkillField';
-import { useRefreshQuestionSetBody, sessionCancelledCheck, stopWaitingForGeneration } from '../../hooks/useRefreshQuestionSetBody';
+import { useRefreshQuestionSetBody, sessionCancelledCheck } from '../../hooks/useRefreshQuestionSetBody';
 
 interface SplitEditorShellProps {
   events: IEditorEvents;
@@ -45,9 +45,6 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
   const lastSaved = useEditorStore((s) => s.lastSaved);
   const isDynamicAssess = useIsDynamicAssess();
   const isGenerating = useEditorStore((s) => s.buttonLoaders.refreshBody);
-  // Set by the overlay's Cancel until the generation's wait ends.
-  const [stopping, setStopping] = useState(false);
-  useEffect(() => { if (!isGenerating) setStopping(false); }, [isGenerating]);
   const generationPending = useEditorStore((s) => s.buttonLoaders.refreshPending);
   const skillField = useDynamicSkillField();
   // Matches when Topbar shows the Generate button to a reviewer.
@@ -281,11 +278,7 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
       )}
       <QuestionTypeSelectorModal />
       <ConnectedConfirmDialog />
-      <GeneratingOverlay
-        open={isDynamicAssess && isGenerating}
-        stopping={stopping}
-        onCancel={() => { setStopping(true); stopWaitingForGeneration(); }}
-      />
+      <GeneratingOverlay open={isDynamicAssess && isGenerating} />
     </div>
     </EditorRootContext.Provider>
   );

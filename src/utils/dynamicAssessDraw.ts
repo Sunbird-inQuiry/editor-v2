@@ -1,7 +1,7 @@
 import type { INode } from '../types/editor';
 import { toDifficultyTarget } from './difficultyTarget';
 
-// Same seeded draw as the portal's dynamicAssessSubset, so the editor shows the user the exact set they'd play; the full pool is never displayed.
+// Dynamic Assess pool settings and generation checks; the editor shows the whole pool, and learners get their own draw in the portal.
 
 const LEVELS = [['E', 'EASY'], ['M', 'MEDIUM'], ['D', 'DIFFICULT']] as const;
 
@@ -27,70 +27,8 @@ function readSetting(v: unknown, min: number): number | undefined {
   return Number.isFinite(n) && Math.trunc(n) >= min ? Math.trunc(n) : undefined;
 }
 
-function hashSeed(seed: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
-function seededRandom(seed: string): () => number {
-  let a = hashSeed(seed);
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-export function pickForLearner(ids: string[], count: number, seed: string): string[] {
-  const pool = [...new Set(ids)].sort();
-  if (count >= pool.length) return pool;
-  const rand = seededRandom(seed);
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    const swap = pool[i] as string;
-    pool[i] = pool[j] as string;
-    pool[j] = swap;
-  }
-  return pool.slice(0, Math.max(0, count));
-}
-
 const levelOf = (c: INode, treeCache: Record<string, Record<string, unknown>>) =>
   String(c.metadata?.difficultyLevel ?? treeCache[c.identifier]?.difficultyLevel ?? '').toUpperCase();
-
-/** Ids of the root's questions this user should see, or null when the root isn't a Dynamic QuestionSet (show everything). */
-export function visibleDynamicQuestionIds(
-  root: INode | undefined, treeCache: Record<string, Record<string, unknown>>, userId: string, primaryCategory?: string,
-): Set<string> | null {
-  if (!root) return null;
-  const meta = { ...(root.metadata ?? {}), ...(treeCache[root.identifier] ?? {}) } as Record<string, unknown>;
-  if ((primaryCategory ?? root.primaryCategory ?? meta.primaryCategory) !== 'Dynamic QuestionSet') return null;
-  const target = toDifficultyTarget(meta.difficultyTarget);
-  const children = root.children ?? [];
-  const questions = children.filter((c) => c.isQuestion);
-  if (children.length === 0) return null;
-  if (questions.length === 0) return new Set(); // only sections/folders: never show them (or questions nested in them)
-  // Fails closed: an unsaved target above what was generated (or a zero/invalid one) must never reveal the pool, so each level is capped at its generated size.
-  const visible = new Set<string>();
-  const { multiplier } = dynamicAssessSettings(meta);
-  for (const [key, level] of LEVELS) {
-    const atLevel = questions.filter((c) => levelOf(c, treeCache) === level).map((c) => c.identifier);
-    const count = Math.min(target[key] ?? 0, Math.floor(atLevel.length / multiplier));
-    pickForLearner(atLevel, count, `${userId || 'anonymous'}:${root.identifier}:${level}`).forEach((id) => visible.add(id));
-  }
-  return visible;
-}
-
-/** The root with only this user's draw as children; other trees are returned unchanged. */
-export function withDynamicDraw(root: INode, treeCache: Record<string, Record<string, unknown>>, userId: string, primaryCategory?: string): INode {
-  const visible = visibleDynamicQuestionIds(root, treeCache, userId, primaryCategory);
-  if (!visible) return root;
-  return { ...root, children: (root.children ?? []).filter((c) => visible.has(c.identifier)) };
-}
 
 /** The selected skills: the terms in the framework's deepest category field (`skillField`, e.g. "topic"), the same field the backend reads them from. */
 export function selectedSkills(meta: Record<string, unknown>, skillField: string): string[] {
