@@ -6,11 +6,16 @@ import type { ITerm } from '../../types/framework';
 import { Icon } from '../shared/Icon';
 import type { ICategoryField } from '../../api/categoryDefinition';
 import { useEditorStore } from '../../store/editor.store';
+import { useIsDynamicAssess } from '../../hooks/useIsDynamicAssess';
 import { searchFrameworks } from '../../api/framework';
 import styles from './SparkMetaForm.module.scss';
 import ImagePickerModal from '../shared/ImagePickerModal';
 import ContentEditable from '../shared/ContentEditable';
 import { htmlToText } from '../../utils/html';
+import { useLabels } from '../../hooks/useLabels';
+import { label } from '../../utils/labels';
+import { MinQuestionsPanel } from './MinQuestionsPanel';
+import { toDifficultyTarget, serializeDifficultyTarget, type DifficultyTarget } from '../../utils/difficultyTarget';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -160,6 +165,54 @@ function TimerHmsField({ seconds, disabled, onCommit, onBlur }: {
   );
 }
 
+// Dynamic Assess difficultyTarget: { E, M, D } counts entered as three number inputs; re-exported for existing importers.
+export { toDifficultyTarget, type DifficultyTarget };
+
+function DifficultyTargetInput({ value, disabled, onCommit, groupLabel }: {
+  value: DifficultyTarget;
+  disabled?: boolean;
+  onCommit: (v: DifficultyTarget) => void;
+  /** The field's own label, so screen readers announce the three counts as one group. */
+  groupLabel?: string;
+}) {
+  // A cleared box stays blank while the author retypes; the committed value is 0 until then, so validation sees what is shown on blur.
+  const [drafts, setDrafts] = useState<Partial<Record<keyof DifficultyTarget, string>>>({});
+  const set = (key: keyof DifficultyTarget, raw: string) => {
+    setDrafts((d) => ({ ...d, [key]: raw }));
+    const n = raw === '' ? 0 : Math.max(0, Math.floor(Number(raw)) || 0);
+    onCommit({ ...value, [key]: n });
+  };
+  const clearDraft = (key: keyof DifficultyTarget) => setDrafts(({ [key]: _dropped, ...rest }) => rest);
+
+  const L = useLabels();
+  const rows: Array<{ key: keyof DifficultyTarget; text: string }> = [
+    { key: 'E', text: L('ui.difficultyEasy', 'Easy') },
+    { key: 'M', text: L('ui.difficultyMedium', 'Medium') },
+    { key: 'D', text: L('ui.difficultyDifficult', 'Difficult') },
+  ];
+
+  return (
+    <div className={styles.difficultyTarget} role="group" aria-label={groupLabel || undefined}>
+      {rows.map(({ key, text }) => (
+        <div key={key} className={styles.difficultyTargetCell}>
+          <span className={styles.difficultyTargetLabel} aria-hidden="true">{text}</span>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            className={styles.input}
+            aria-label={text}
+            value={drafts[key] ?? value[key] ?? 0}
+            onChange={(e) => set(key, e.target.value)}
+            onBlur={() => clearDraft(key)}
+            disabled={disabled}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Types for range items (framework-driven options)
 // ---------------------------------------------------------------------------
@@ -217,12 +270,26 @@ function isMultiSelectField(field: ICategoryField): boolean {
   return field.inputType === 'multiselect' || isSkillField(field);
 }
 
+// difficultyTarget is matched by code, like skill: the category-definition API has no inputType for three number fields.
+function isDifficultyTargetField(field: ICategoryField): boolean {
+  return field.code?.toLowerCase() === 'difficultytarget';
+}
+
 // ---------------------------------------------------------------------------
 // Build per-field Zod validator (returns error message string | undefined)
 // ---------------------------------------------------------------------------
 
 function makeFieldValidator(field: ICategoryField) {
   return (value: unknown): string | true => {
+    if (isDifficultyTargetField(field)) {
+      const dt = toDifficultyTarget(value);
+      const total = (dt.E ?? 0) + (dt.M ?? 0) + (dt.D ?? 0);
+      if (field.required && total <= 0) {
+        return label('messages.error.difficultyTargetEmpty', '{FIELD} must have at least one question').replace('{FIELD}', String(field.label ?? ''));
+      }
+      return true;
+    }
+
     const inputType = isMultiSelectField(field) ? 'multiselect' : (field.inputType ?? 'text');
 
     if (inputType === 'multiselect' || inputType === 'keywords') {
@@ -397,6 +464,8 @@ export function adaptFieldsForFramework(
   frameworkTerms: Map<string, FrameworkTerm[]> | undefined,
   categoryOrder: string[] | undefined,
   isRoot: boolean,
+  // Skill rebinding is Dynamic QuestionSet-only; other categories keep their own skill field binding. Callers pass useIsDynamicAssess().
+  isDynamicAssess: boolean,
 ): ICategoryField[] {
   // No framework categories loaded yet (still fetching, or none selected) —
   // leave the static field list exactly as the category-definition API gave it.
@@ -436,6 +505,8 @@ export function adaptFieldsForFramework(
   // SECOND field for the very same category — the duplicate Board/Medium/
   // GradeLevel/Subject rows this fixes.
   const resolveCategoryCode = (field: ICategoryField): string | undefined => {
+    // Dynamic sets select skills in the framework's own deepest category field (synthesized below when the form lacks it), so a separate skill field is kept only when that category is "skill" itself.
+    if (isDynamicAssess && isRoot && isSkillField(field)) return highestIndexCode === 'skill' ? 'skill' : undefined;
     if (field.sourceCategory) return field.sourceCategory;
     if (frameworkCategoryCodes.has(field.code)) return field.code;
     const byLabel = field.label?.trim().toLowerCase();
@@ -447,11 +518,10 @@ export function adaptFieldsForFramework(
     .map((f) => {
       if (!isFrameworkDrivenField(f)) return f;
       const categoryCode = resolveCategoryCode(f)!;
-      // Stamp the resolved category back onto the field (when it only
-      // matched via label) so buildOptions()/buildCascadedOptions() — which
-      // only ever look at sourceCategory ?? code, not this function's own
-      // resolution — also find the framework's live terms for it.
-      const withSourceCategory = f.sourceCategory ? f : { ...f, sourceCategory: categoryCode };
+      // Stamp the resolved category onto the field so buildOptions() finds its terms; a Dynamic skill field's static sourceCategory is never trusted.
+      const withSourceCategory = (!f.sourceCategory || (isDynamicAssess && isSkillField(f) && f.sourceCategory !== categoryCode))
+        ? { ...f, sourceCategory: categoryCode }
+        : f;
       // required: true — a framework-driven category field is always
       // mandatory once the framework supplies it, at root and per-question
       // alike (matches the synthesized fields below).
@@ -502,7 +572,9 @@ function buildDefaultValues(
   for (const f of fields) {
     if (!f.visible || !fieldMatchesSection(f, section, showAllSections)) continue;
     const v = values[f.code];
-    if (isMultiSelectField(f) || f.inputType === 'keywords') {
+    if (isDifficultyTargetField(f)) {
+      defaults[f.code] = toDifficultyTarget(v);
+    } else if (isMultiSelectField(f) || f.inputType === 'keywords') {
       defaults[f.code] = Array.isArray(v) ? v : v ? [String(v)] : [];
     } else if (f.inputType === 'checkbox') {
       defaults[f.code] = Boolean(v);
@@ -981,9 +1053,10 @@ const SparkMetaForm: React.FC<SparkMetaFormProps> = ({
   // Drop/add category fields that don't/do belong to the selected framework
   // (e.g. Industry/Domain/Skill for USF vs board/medium/gradeLevel/subject
   // for a K-12 framework like CBSE) — see adaptFieldsForFramework above.
+  const isDynamicAssess = useIsDynamicAssess();
   const adaptedFields = useMemo(
-    () => adaptFieldsForFramework(fields, frameworkTerms, categoryOrder, isRoot),
-    [fields, frameworkTerms, categoryOrder, isRoot],
+    () => adaptFieldsForFramework(fields, frameworkTerms, categoryOrder, isRoot, isDynamicAssess),
+    [fields, frameworkTerms, categoryOrder, isRoot, isDynamicAssess],
   );
 
   // Filter to only visible fields for this section
@@ -1087,7 +1160,9 @@ const SparkMetaForm: React.FC<SparkMetaFormProps> = ({
           || isShowTimer
           // Count select takes its own row — only the behaviour checkboxes
           // (shuffle/feedback/solution/hint) flow two per row.
-          || field.code === 'maxQuestions';
+          || field.code === 'maxQuestions'
+          // Three side-by-side number inputs need the full row, like the timer.
+          || isDifficultyTargetField(field);
         const fieldClass = [styles.field, isFullWidth ? styles.fieldFull : ''].filter(Boolean).join(' ');
         // Checkboxes (and showTimer's custom row) carry their label inline —
         // a separate uppercase header would duplicate it.
@@ -1116,6 +1191,22 @@ const SparkMetaForm: React.FC<SparkMetaFormProps> = ({
               rules={{ validate: validator }}
               render={({ field: rhfField }) => {
                 const inputType = isMultiSelectField(field) ? 'multiselect' : (field.inputType ?? 'text');
+
+                // ── difficultyTarget — E/M/D question-count inputs ────────
+                if (isDifficultyTargetField(field)) {
+                  return (
+                    <>
+                      <DifficultyTargetInput
+                        value={toDifficultyTarget(rhfField.value)}
+                        disabled={isDisabled}
+                        groupLabel={field.label}
+                        onCommit={(next) => { rhfField.onChange(next); onChange(field.code, serializeDifficultyTarget(next)); }}
+                      />
+                      {/* Only a Dynamic set's root has a per-skill minimum. */}
+                      {isDynamicAssess && isRoot && <MinQuestionsPanel values={values} target={toDifficultyTarget(rhfField.value)} />}
+                    </>
+                  );
+                }
 
                 // ── richtext — renders HTML content via ContentEditable ───
                 if (inputType === 'richtext') {

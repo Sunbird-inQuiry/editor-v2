@@ -5,6 +5,28 @@ import { useTreeStore } from '../store/tree.store';
 import { getFramework } from '../api/framework';
 import { queryClient } from '../queryClient';
 import type { IFramework, ITerm } from '../types/framework';
+import type { IEditorConfig } from '../types/editor';
+import { useIsDynamicAssess } from './useIsDynamicAssess';
+
+/** The backend's skill category rule (knowlg-service and the knowlg-publish job): highest `index`, a missing index counts as 0, the first wins on ties. */
+export function highestIndexCategoryCode(categories: Array<{ code: string; index?: number }>): string | undefined {
+  if (!categories.length) return undefined;
+  return categories.reduce((a, b) => ((b.index ?? 0) > (a.index ?? 0) ? b : a)).code || undefined;
+}
+
+/** Category codes by ascending `index`, missing last; for Dynamic Assess the backend's skill category is moved last, since Skill binds to the last entry. */
+export function orderCategoryCodes(categories: Array<{ code: string; index?: number }>, isDynamicAssess: boolean): string[] {
+  const order = [...categories]
+    .sort((a, b) => (a.index ?? Infinity) - (b.index ?? Infinity))
+    .map((c) => c.code);
+  const skillCode = isDynamicAssess ? highestIndexCategoryCode(categories) : undefined;
+  return skillCode ? [...order.filter((c) => c !== skillCode), skillCode] : order;
+}
+
+/** The set's framework id with useFramework's precedence: a live pick, then the set's own, then the host's context/config; shared so Dynamic Assess reads the same framework the form shows. */
+export function resolveFrameworkId(config: IEditorConfig | null | undefined, rootFramework: unknown, liveFramework?: string | null): string {
+  return liveFramework || (rootFramework ? String(rootFramework) : '') || config?.context?.framework || config?.config?.framework?.[0] || '';
+}
 
 /**
  * @param overrideFrameworkId - Resolves categories against this framework
@@ -20,9 +42,6 @@ export function useFramework(overrideFrameworkId?: string) {
   // via the hierarchy API) win over the host-supplied context — the host
   // value is only a fallback for when the questionset itself has none.
   const rootMeta = useTreeStore((s) => s.treeData[0]?.metadata) as Record<string, unknown> | undefined;
-  const frameworkIds = rootMeta?.framework
-    ? [rootMeta.framework as string]
-    : config?.context?.framework ? [config.context.framework] : (config?.config?.framework ?? []);
   const targetFWIds = (rootMeta?.targetFWIds as string[] | undefined)
     ?? config?.context?.targetFWIds ?? config?.config?.targetFWIds ?? [];
 
@@ -30,7 +49,7 @@ export function useFramework(overrideFrameworkId?: string) {
   // the content's own saved framework immediately, without needing a
   // save/reload round trip first — see editor.store.ts's contentFramework.
   const liveFramework = useEditorStore((s) => s.contentFramework);
-  const orgFrameworkId = overrideFrameworkId || liveFramework || frameworkIds[0] || '';
+  const orgFrameworkId = overrideFrameworkId || resolveFrameworkId(config, rootMeta?.framework, liveFramework);
 
   const orgQuery = useQuery<IFramework>({
     queryKey: ['framework', orgFrameworkId],
@@ -76,11 +95,10 @@ export function useFramework(overrideFrameworkId?: string) {
   // accidentally become "highest index" and unlock multiselect it shouldn't
   // have. Consumers (SparkMetaForm's single-vs-multi-select rule) treat the
   // last entry as the skill-equivalent leaf category.
+  const isDynamicAssess = useIsDynamicAssess();
   const categoryOrder = useMemo<string[]>(
-    () => [...(orgQuery.data?.categories ?? [])]
-      .sort((a, b) => (a.index ?? Infinity) - (b.index ?? Infinity))
-      .map((c) => c.code),
-    [orgQuery.data],
+    () => orderCategoryCodes(orgQuery.data?.categories ?? [], isDynamicAssess),
+    [orgQuery.data, isDynamicAssess],
   );
 
   return {

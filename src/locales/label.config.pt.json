@@ -237,10 +237,24 @@
       "alreadyInSet": "Esta pergunta já está no conjunto",
       "maxDepth": "Não é possível adicionar aqui — profundidade máxima atingida",
       "attachFailed": "Não foi possível adicionar esta pergunta — tente novamente",
+      "saveBusy": "Um salvamento ainda está em andamento — tente novamente em instantes",
       "copyFailed": "Não foi possível copiar esta pergunta — tente novamente",
       "copyPublishFailed": "Copiada, mas não foi possível publicá-la — permanece como rascunho.",
       "republishFailed": "Pergunta salva, mas não foi possível publicá-la — esta edição ficará oculta até ser republicada.",
-      "publishFailed": "Pergunta criada, mas não foi possível publicá-la — ela permanece como rascunho e não aparecerá na Biblioteca até ser publicada."
+      "publishFailed": "Pergunta criada, mas não foi possível publicá-la — ela permanece como rascunho e não aparecerá na Biblioteca até ser publicada.",
+      "dynamicAssessInputs": "Defina a Habilidade e a Meta de dificuldade antes de gerar as questões.",
+      "dynamicAssessPoolCheck": "Não foi possível verificar a disponibilidade de questões. Tente novamente.",
+      "dynamicAssessPool": "Não há questões suficientes disponíveis para a(s) habilidade(s) selecionada(s)",
+      "dynamicAssessRefresh": "Falha ao gerar as questões. Tente novamente.",
+      "dynamicAssessInit": "Falha ao gerar as questões para este conjunto de questões.",
+      "dynamicAssessShortfall": "{LEVEL}: solicitadas {REQUESTED}, necessárias {NEEDED}, disponíveis {AVAILABLE}",
+      "dynamicAssessPending": "As questões ainda não apareceram. A geração pode ainda estar em andamento ou pode ter falhado (por exemplo, poucas questões para uma habilidade). Reabra este conjunto de questões em instantes ou verifique o banco e tente novamente.",
+      "difficultyTargetEmpty": "{FIELD} deve ter pelo menos uma questão",
+      "dynamicAssessSkillPool": "Cada habilidade precisa de pelo menos {NEEDED} questões publicadas. Poucas para: {SKILLS}",
+      "dynamicAssessTooManySkills": "Habilidades selecionadas: {COUNT}. A Meta de dificuldade deve somar pelo menos {NEEDED} (cada habilidade recebe pelo menos {MIN} questões). Aumente a meta ou remova uma habilidade.",
+      "dynamicAssessSkillLevels": "Não há questões suficientes nos níveis de dificuldade escolhidos para: {SKILLS}. Cada habilidade precisa fornecer pelo menos {MIN} questões nesses níveis.",
+      "dynamicAssessSavedNotGenerated": "Salvo, mas as questões não foram geradas novamente: {REASON}",
+      "dynamicAssessPendingSave": "As questões ainda estão sendo geradas. Reabra este conjunto de questões antes de salvar."
     },
     "success": {
       "001": "Conteúdo salvo",
@@ -257,7 +271,17 @@
       "040": "Conteúdo devolvido para correções",
       "043": "Comentário salvo com sucesso",
       "questionAdded": "\"{NAME}\" adicionada",
-      "questionCopied": "\"{NAME}\" copiada"
+      "questionCopied": "\"{NAME}\" copiada",
+      "dynamicAssessRefresh": "Questões geradas"
+    },
+    "info": {
+      "dynamicAssessGeneratingTitle": "Gerando questões",
+      "dynamicAssessGeneratingSub": "Selecionando questões do banco para as habilidades e a dificuldade escolhidas. Isso geralmente leva alguns segundos.",
+      "dynamicAssessStaleTitle": "Configurações alteradas desde que as questões foram geradas",
+      "dynamicAssessStaleSub": "As questões não correspondem à Habilidade e à Meta de dificuldade atuais. Clique em Salvar e gerar para atualizá-las.",
+      "dynamicAssessStaleSubReadonly": "As questões não correspondem mais à Habilidade ou à Meta de dificuldade. Solicite alterações para que o criador as gere novamente.",
+      "dynamicAssessPendingTitle": "As questões ainda estão sendo geradas",
+      "dynamicAssessPendingSub": "Reabra este conjunto de questões em instantes para vê-las. O salvamento está pausado para não sobrescrever as novas questões."
     }
   },
   "ui": {
@@ -441,7 +465,29 @@
     "sortAZ": "Ordenar de A a Z",
     "sortByRecent": "Mudar para mais recentes primeiro",
     "sortAZLabel": "A–Z",
-    "hasRequiredFields": "Contém campos obrigatórios"
+    "hasRequiredFields": "Contém campos obrigatórios",
+    "generateBeforeReview": "Salve com Habilidade e Meta de dificuldade para gerar as questões antes de enviar para revisão",
+    "generateBeforePublish": "Gere as questões antes de publicar",
+    "difficultyEasy": "Fácil",
+    "difficultyMedium": "Médio",
+    "difficultyDifficult": "Difícil",
+    "dynamicAssessMinTitle": "Mínimo de questões por habilidade",
+    "dynamicAssessMinNeeds": "Cada habilidade selecionada precisa de pelo menos {MIN} questões; aumente o total para pelo menos {MINIMUM}.",
+    "dynamicAssessMinOk": "Cada habilidade selecionada precisa de pelo menos {MIN} questões.",
+    "dynamicAssessMinFooter": "Total: {TOTAL} · Mínimo: {MINIMUM}",
+    "dynamicAssessNeedsAdjustment": "Precisa de ajuste",
+    "generationStaleTip": "Configurações alteradas — salve para gerar as questões novamente primeiro",
+    "saveAndGenerate": "Salvar e gerar",
+    "saveAndGenerateHint": "Salva e depois escolhe questões do banco para a Habilidade e a Meta de dificuldade atuais",
+    "regenerateQuestions": "Gerar novamente",
+    "regenerateQuestionsHint": "Escolher um novo conjunto aleatório de questões para a mesma Habilidade e Meta de dificuldade",
+    "difficulty": "Dificuldade",
+    "selectDifficulty": "Selecionar dificuldade",
+    "dynamicAssessExampleShow": "Ver um exemplo",
+    "dynamicAssessExampleHide": "Ocultar",
+    "dynamicAssessExampleIntro": "Exemplo: você escolhe 2 habilidades e pede {N} fáceis, {N} médias e {N} difíceis.",
+    "dynamicAssessExampleTotal": "Cada aluno recebe {TOTAL} questões.",
+    "dynamicAssessExampleEach": "No mínimo {MIN} questões virão de cada habilidade."
   },
   "categoryLabels": {
     "Multiselect Multiple Choice Question": "Pergunta de Múltipla Escolha",

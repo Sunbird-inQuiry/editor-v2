@@ -4,6 +4,13 @@ import type { I18nMap } from '../utils/i18nField';
 
 export type SolutionType = '' | 'html' | 'video' | 'audio';
 
+/** A question's difficulty as the Dynamic Assess pool stores it (EASY/MEDIUM/DIFFICULT), from any casing or legacy 'hard'; '' when unset or unknown. */
+export function normalizeDifficultyLevel(v: unknown): string {
+  const s = String(v ?? '').trim().toUpperCase();
+  if (s === 'HARD') return 'DIFFICULT';
+  return ['EASY', 'MEDIUM', 'DIFFICULT'].includes(s) ? s : '';
+}
+
 /** Per-field language maps — the plain string fields below always hold the
  *  ACTIVE language's text; other languages live here (old editor i18n). */
 export interface II18nText {
@@ -126,7 +133,8 @@ const DEFAULT_OPTIONS: IOption[] = [
 ];
 
 const DEFAULT_META = {
-  difficultyLevel: 'medium',
+  // Unset unless the author picks one, so only those questions carry a difficulty.
+  difficultyLevel: '',
   bloomsLevel: 'understand',
   purpose: 'practice',
   maxScore: 1,
@@ -316,7 +324,7 @@ export const useQuestionStore = create<QuestionState>((set, get) => ({
       questionBody: question.editorState?.question ?? question.body ?? '',
       isDirty: false,
       // Metadata from the question object, fall back to defaults
-      difficultyLevel: question.difficultyLevel ?? DEFAULT_META.difficultyLevel,
+      difficultyLevel: normalizeDifficultyLevel(question.difficultyLevel),
       bloomsLevel: question.bloomsLevel ?? DEFAULT_META.bloomsLevel,
       purpose: question.purpose ?? DEFAULT_META.purpose,
       maxScore: question.maxScore ?? DEFAULT_META.maxScore,

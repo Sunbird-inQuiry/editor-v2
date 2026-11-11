@@ -44,5 +44,58 @@
     "chooseType": "प्रकार चुनें",
     "loaderHeading": "कृपया प्रतीक्षा करें",
     "loaderMessage": "विवरण प्राप्त किए जा रहे हैं।"
+  },
+  "ui": {
+    "generateBeforeReview": "समीक्षा के लिए भेजने से पहले कौशल और कठिनाई लक्ष्य के साथ सहेजकर प्रश्न तैयार करें",
+    "generateBeforePublish": "प्रकाशित करने से पहले प्रश्न तैयार करें",
+    "difficultyEasy": "आसान",
+    "difficultyMedium": "मध्यम",
+    "difficultyDifficult": "कठिन",
+    "dynamicAssessMinTitle": "प्रति कौशल न्यूनतम प्रश्न",
+    "dynamicAssessMinNeeds": "प्रत्येक चुने गए कौशल को कम से कम {MIN} प्रश्न चाहिए; कुल संख्या कम से कम {MINIMUM} करें।",
+    "dynamicAssessMinOk": "प्रत्येक चुने गए कौशल को कम से कम {MIN} प्रश्न चाहिए।",
+    "dynamicAssessMinFooter": "कुल: {TOTAL} · न्यूनतम: {MINIMUM}",
+    "dynamicAssessNeedsAdjustment": "समायोजन आवश्यक",
+    "generationStaleTip": "सेटिंग्स बदली गई हैं — पहले सहेजकर प्रश्न फिर से तैयार करें",
+    "saveAndGenerate": "सहेजें और तैयार करें",
+    "saveAndGenerateHint": "सहेजता है, फिर वर्तमान कौशल और कठिनाई लक्ष्य के लिए प्रश्न-संग्रह से प्रश्न चुनता है",
+    "regenerateQuestions": "फिर से तैयार करें",
+    "regenerateQuestionsHint": "उसी कौशल और कठिनाई लक्ष्य के लिए प्रश्नों का नया यादृच्छिक सेट चुनें",
+    "difficulty": "कठिनाई",
+    "selectDifficulty": "कठिनाई चुनें",
+    "dynamicAssessExampleShow": "उदाहरण देखें",
+    "dynamicAssessExampleHide": "छिपाएँ",
+    "dynamicAssessExampleIntro": "उदाहरण: आप 2 कौशल चुनते हैं और {N} आसान, {N} मध्यम और {N} कठिन माँगते हैं।",
+    "dynamicAssessExampleTotal": "हर शिक्षार्थी को {TOTAL} प्रश्न मिलते हैं।",
+    "dynamicAssessExampleEach": "हर कौशल से कम से कम {MIN} प्रश्न आएँगे।"
+  },
+  "messages": {
+    "error": {
+      "dynamicAssessInputs": "प्रश्न तैयार करने से पहले कौशल और कठिनाई लक्ष्य सेट करें।",
+      "dynamicAssessPoolCheck": "प्रश्नों की उपलब्धता की जांच नहीं हो सकी। कृपया फिर से प्रयास करें।",
+      "dynamicAssessPool": "चुने गए कौशल के लिए पर्याप्त प्रश्न उपलब्ध नहीं हैं",
+      "dynamicAssessRefresh": "प्रश्न तैयार नहीं हो सके। कृपया फिर से प्रयास करें।",
+      "dynamicAssessInit": "इस प्रश्न-सेट के लिए प्रश्न तैयार नहीं हो सके।",
+      "dynamicAssessShortfall": "{LEVEL}: अनुरोधित {REQUESTED}, आवश्यक {NEEDED}, उपलब्ध {AVAILABLE}",
+      "dynamicAssessPending": "प्रश्न अभी तक दिखाई नहीं दिए। प्रश्न तैयार होना अभी जारी हो सकता है, या यह विफल हो गया हो सकता है (उदाहरण के लिए, किसी कौशल के लिए बहुत कम प्रश्न)। कुछ देर बाद यह प्रश्न-सेट फिर से खोलें, या प्रश्न-संग्रह जांचकर फिर से प्रयास करें।",
+      "difficultyTargetEmpty": "{FIELD} में कम से कम एक प्रश्न होना चाहिए",
+      "dynamicAssessSkillPool": "प्रत्येक कौशल के लिए कम से कम {NEEDED} प्रकाशित प्रश्न आवश्यक हैं। इनके लिए बहुत कम हैं: {SKILLS}",
+      "dynamicAssessTooManySkills": "चुने गए कौशल: {COUNT}। कठिनाई लक्ष्य का योग कम से कम {NEEDED} होना चाहिए (प्रत्येक कौशल को कम से कम {MIN} प्रश्न मिलते हैं)। लक्ष्य बढ़ाएं या कोई कौशल हटाएं।",
+      "dynamicAssessSkillLevels": "चुने गए कठिनाई स्तरों पर इनके लिए पर्याप्त प्रश्न नहीं हैं: {SKILLS}। प्रत्येक कौशल को इन स्तरों पर कम से कम {MIN} प्रश्न देने होंगे।",
+      "dynamicAssessSavedNotGenerated": "सहेजा गया, लेकिन प्रश्न फिर से तैयार नहीं हुए: {REASON}",
+      "dynamicAssessPendingSave": "प्रश्न अभी तैयार हो रहे हैं। सहेजने से पहले यह प्रश्न-सेट फिर से खोलें।"
+    },
+    "success": {
+      "dynamicAssessRefresh": "प्रश्न तैयार हो गए"
+    },
+    "info": {
+      "dynamicAssessGeneratingTitle": "प्रश्न तैयार हो रहे हैं",
+      "dynamicAssessGeneratingSub": "चुने गए कौशल और कठिनाई के अनुसार प्रश्न-संग्रह से प्रश्न चुने जा रहे हैं। इसमें आमतौर पर कुछ सेकंड लगते हैं।",
+      "dynamicAssessStaleTitle": "प्रश्न तैयार होने के बाद सेटिंग्स बदली गई हैं",
+      "dynamicAssessStaleSub": "प्रश्न वर्तमान कौशल और कठिनाई लक्ष्य से मेल नहीं खाते। उन्हें अपडेट करने के लिए सहेजें और तैयार करें पर क्लिक करें।",
+      "dynamicAssessStaleSubReadonly": "प्रश्न अब कौशल या कठिनाई लक्ष्य से मेल नहीं खाते। परिवर्तन का अनुरोध करें ताकि निर्माता उन्हें फिर से तैयार कर सके।",
+      "dynamicAssessPendingTitle": "प्रश्न अभी तैयार हो रहे हैं",
+      "dynamicAssessPendingSub": "उन्हें देखने के लिए कुछ देर बाद यह प्रश्न-सेट फिर से खोलें। नए प्रश्न ओवरराइट न हों, इसलिए सहेजना रोका गया है।"
+    }
   }
 }

@@ -143,4 +143,7 @@ export interface IButtonLoaders {
   sendBackContent: boolean;
   sourcingApproveContent: boolean;
   sourcingRejectContent: boolean;
+  refreshBody: boolean;
+  /** A Dynamic Assess generation timed out mid-write; saving is paused until the set is reopened. */
+  refreshPending: boolean;
 }

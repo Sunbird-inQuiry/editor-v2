@@ -10,6 +10,10 @@ import { QualityParamsModal } from '../modals/QualityParamsModal';
 import styles from './Topbar.module.scss';
 import { labelFrom } from '../../utils/labels';
 import { telemetryInteract } from '../../utils/telemetry';
+import { useIsDynamicAssess } from '../../hooks/useIsDynamicAssess';
+import { isGenerationStale, needsGeneration } from '../../utils/dynamicAssessDraw';
+import { RegenerateButton } from '../shared/RegenerateButton';
+import { useDynamicSkillField } from '../../hooks/useDynamicSkillField';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -271,6 +275,16 @@ export const Topbar: React.FC<TopbarProps> = ({
     !!editorConfig?.context?.enableReviewEdit;
   const hideSubmitForReview = !!editorConfig?.config?.hideSubmitForReviewBtn;
 
+  // ── Dynamic Assess ─────────────────────────────────────────────────────
+  const isDynamicAssess = useIsDynamicAssess();
+  // Dynamic sets count questions only: a section-only root has nothing generated.
+  const hasChildren = isDynamicAssess ? !!rootNode?.children?.some((c) => c.isQuestion) : (rootNode?.children?.length ?? 0) > 0;
+  const skillField = useDynamicSkillField();
+  const generationPending = buttonLoaders.refreshPending;
+  const generationStale = useTreeStore((s) => isDynamicAssess && isGenerationStale(s.treeData[0], s.treeCache, 'Dynamic QuestionSet', skillField));
+  const dynamicAssessBlocked = isDynamicAssess && (!hasChildren || generationStale || generationPending);
+  const saveGenerates = useTreeStore((s) => isDynamicAssess && needsGeneration(s.treeData[0], s.treeCache, 'Dynamic QuestionSet', skillField));
+
   // ── Reviewer feedback (shown via topbar button → popup) ───────────────────
   const [showFeedback, setShowFeedback] = useState(false);
   const visibleComments = isEditMode
@@ -398,7 +412,8 @@ export const Topbar: React.FC<TopbarProps> = ({
             className="ce-btn ghost"
             type="button"
             onClick={() => emit('preview', undefined, { id: 'preview', subtype: 'launch' })}
-            disabled={isSaving}
+            // Preview saves first in edit mode, so it waits out a Dynamic generation like Save does.
+            disabled={isSaving || generationPending || (isDynamicAssess && buttonLoaders.refreshBody)}
             title="Preview question set"
           >
             <Icon name="play" size={15} />
@@ -412,10 +427,19 @@ export const Topbar: React.FC<TopbarProps> = ({
             <button
               className="ce-btn ghost"
               type="button"
-              onClick={() => emit('saveContent', undefined, { id: 'save_as_draft', subtype: 'submit' })}
+              onClick={() => emit('saveContent', undefined, { id: saveGenerates ? 'dynamic_assess_save_generate' : 'save_as_draft', subtype: 'submit' })}
+              disabled={buttonLoaders.refreshBody || generationPending}
+              // Dynamic sets generate as part of Save only when Skill/Target need it, so the label says when it will.
+              title={saveGenerates ? L('ui.saveAndGenerateHint', 'Saves, then picks questions from the pool for the current Skill and Difficulty Target') : undefined}
             >
-              {L('button_labels.save_collection_btn_label', 'Save as Draft')}
+              {saveGenerates && <Icon name="swap" size={15} />}
+              {saveGenerates ? L('ui.saveAndGenerate', 'Save & Generate') : L('button_labels.save_collection_btn_label', 'Save as Draft')}
             </button>
+          )}
+
+          {/* Dynamic Assess re-roll: only once questions exist, and hidden while Save itself will generate. */}
+          {isDynamicAssess && hasChildren && !saveGenerates && ((isEditMode && statusLabel !== 'Review') || reviewerEditAllowed) && (
+            <RegenerateButton />
           )}
 
           {/* Send for Review */}
@@ -424,8 +448,14 @@ export const Topbar: React.FC<TopbarProps> = ({
               className="ce-btn primary"
               type="button"
               onClick={() => { telemetryInteract('send_for_review', { subtype: 'launch' }); setShowConfirmReview(true); }}
-              disabled={buttonLoaders.saveContent || isSaving || !isFormValid}
-              title={!isFormValid ? 'Fill all required fields before sending for review' : undefined}
+              disabled={buttonLoaders.saveContent || isSaving || !isFormValid || dynamicAssessBlocked}
+              title={
+                generationStale
+                  ? L('ui.generationStaleTip', 'Settings changed — save to generate the questions again first')
+                  : isDynamicAssess && !hasChildren
+                  ? L('ui.generateBeforeReview', 'Save with Skill and Difficulty Target to generate questions before sending for review')
+                  : !isFormValid ? 'Fill all required fields before sending for review' : undefined
+              }
             >
               <Icon name="send" size={15} />
               {L('button_labels.submit_collection_btn_label', 'Send for Review')}
@@ -439,8 +469,9 @@ export const Topbar: React.FC<TopbarProps> = ({
                 variant="primary"
                 size="sm"
                 onClick={() => { telemetryInteract('publish', { subtype: 'submit' }); openModal('publishChecklist'); }}
-                disabled={buttonLoaders.publishContent || !isFormValid}
+                disabled={buttonLoaders.publishContent || !isFormValid || dynamicAssessBlocked}
                 isLoading={buttonLoaders.publishContent}
+                title={generationStale ? L('ui.generationStaleTip', 'Settings changed — save to generate the questions again first') : isDynamicAssess && !hasChildren ? L('ui.generateBeforePublish', 'Generate questions before publishing') : undefined}
               >
                 <Icon name="check" size={14} />
                 &nbsp;{L('button_labels.publish_collection_btn_label', 'Publish')}
@@ -467,7 +498,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                 variant="primary"
                 size="sm"
                 onClick={() => { telemetryInteract('approve', { subtype: 'submit' }); openModal('qualityParams', { action: 'approve' }); }}
-                disabled={buttonLoaders.sourcingApproveContent}
+                disabled={buttonLoaders.sourcingApproveContent || dynamicAssessBlocked}
                 isLoading={buttonLoaders.sourcingApproveContent}
               >
                 <Icon name="info" size={14} />

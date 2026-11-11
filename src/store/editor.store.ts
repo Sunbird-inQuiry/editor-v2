@@ -79,6 +79,8 @@ export const useEditorStore = create<EditorState>((set) => ({
     sendBackContent: false,
     sourcingApproveContent: false,
     sourcingRejectContent: false,
+    refreshBody: false,
+    refreshPending: false,
   },
   showPreview: false,
   previewQuestionId: null,

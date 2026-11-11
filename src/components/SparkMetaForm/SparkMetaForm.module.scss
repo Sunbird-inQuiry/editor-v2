@@ -364,3 +364,21 @@
   padding: 8px 0;
   grid-column: 1 / -1;
 }
+
+// Dynamic Assess Difficulty Target: three count boxes side by side.
+.difficultyTarget { display: flex; gap: 12px; }
+.difficultyTargetCell { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.difficultyTargetLabel { font-size: 12px; color: var(--sb-text-muted); }
+
+// Dynamic Assess minimum-questions-per-skill panel.
+.minPanel { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--sb-border); border-radius: 8px; }
+.minPanelShort { border-color: var(--sb-red-border); }
+.minPanelTitle { font-size: 13px; font-weight: 600; }
+.minPanelText { margin: 4px 0 10px; font-size: 13px; color: var(--sb-text-muted); }
+.minPanelFooter { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--sb-text-muted); }
+.minPanelActions { display: flex; align-items: center; gap: 10px; }
+.minPanelBadge { padding: 2px 8px; border-radius: 999px; font-weight: 600; color: var(--sb-red); background: var(--sb-red-soft); border: 1px solid var(--sb-red-border); }
+.minPanelToggle { background: none; border: 0; padding: 0; cursor: pointer; color: var(--accent, var(--sb-text)); font-size: 12px; font-weight: 600; }
+.minPanelExample { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--sb-border); font-size: 13px; }
+.minPanelExampleIntro { margin: 0 0 4px; }
+.minPanelExampleList { margin: 0; padding-left: 18px; }

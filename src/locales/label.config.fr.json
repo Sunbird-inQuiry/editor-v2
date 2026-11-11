@@ -237,10 +237,24 @@
       "alreadyInSet": "Cette question figure déjà dans l'ensemble",
       "maxDepth": "Impossible d'ajouter ici — profondeur maximale atteinte",
       "attachFailed": "Impossible d'ajouter cette question — veuillez réessayer",
+      "saveBusy": "Un enregistrement est encore en cours — veuillez réessayer dans un instant",
       "copyFailed": "Impossible de copier cette question — veuillez réessayer",
       "copyPublishFailed": "Copiée, mais impossible de la publier — elle reste en brouillon.",
       "republishFailed": "Question enregistrée, mais impossible de la publier — cette modification reste masquée tant qu'elle n'est pas republiée.",
-      "publishFailed": "Question créée, mais impossible de la publier — elle reste en brouillon et n'apparaîtra pas dans la bibliothèque tant qu'elle n'est pas publiée."
+      "publishFailed": "Question créée, mais impossible de la publier — elle reste en brouillon et n'apparaîtra pas dans la bibliothèque tant qu'elle n'est pas publiée.",
+      "dynamicAssessInputs": "Définissez la compétence et l’objectif de difficulté avant de générer les questions.",
+      "dynamicAssessPoolCheck": "Impossible de vérifier la disponibilité des questions. Veuillez réessayer.",
+      "dynamicAssessPool": "Pas assez de questions disponibles pour la ou les compétences sélectionnées",
+      "dynamicAssessRefresh": "Échec de la génération des questions. Veuillez réessayer.",
+      "dynamicAssessInit": "Échec de la génération des questions pour cet ensemble de questions.",
+      "dynamicAssessShortfall": "{LEVEL} : {REQUESTED} demandées, {NEEDED} nécessaires, {AVAILABLE} disponibles",
+      "dynamicAssessPending": "Les questions n’apparaissent pas encore. La génération est peut-être toujours en cours, ou elle a échoué (par exemple, trop peu de questions pour une compétence). Rouvrez cet ensemble de questions dans un instant, ou vérifiez le pool et réessayez.",
+      "difficultyTargetEmpty": "{FIELD} doit comporter au moins une question",
+      "dynamicAssessSkillPool": "Chaque compétence doit avoir au moins {NEEDED} questions publiées. Trop peu pour : {SKILLS}",
+      "dynamicAssessTooManySkills": "Compétences sélectionnées : {COUNT}. L’objectif de difficulté doit totaliser au moins {NEEDED} (chaque compétence reçoit au moins {MIN} questions). Augmentez l’objectif ou retirez une compétence.",
+      "dynamicAssessSkillLevels": "Pas assez de questions aux niveaux de difficulté choisis pour : {SKILLS}. Chaque compétence doit pouvoir fournir au moins {MIN} questions à ces niveaux.",
+      "dynamicAssessSavedNotGenerated": "Enregistré, mais les questions n’ont pas été régénérées : {REASON}",
+      "dynamicAssessPendingSave": "Les questions sont encore en cours de génération. Rouvrez cet ensemble de questions avant d’enregistrer."
     },
     "success": {
       "001": "Contenu sauvegardé",
@@ -257,7 +271,17 @@
       "040": "Contenu renvoyé pour corrections",
       "043": "Commentaire enregistré avec succès",
       "questionAdded": "« {NAME} » ajoutée",
-      "questionCopied": "« {NAME} » copiée"
+      "questionCopied": "« {NAME} » copiée",
+      "dynamicAssessRefresh": "Questions générées"
+    },
+    "info": {
+      "dynamicAssessGeneratingTitle": "Génération des questions",
+      "dynamicAssessGeneratingSub": "Sélection des questions du pool selon les compétences et la difficulté choisies. Cela prend généralement quelques secondes.",
+      "dynamicAssessStaleTitle": "Paramètres modifiés depuis la génération des questions",
+      "dynamicAssessStaleSub": "Les questions ne correspondent pas à la compétence et à l’objectif de difficulté actuels. Cliquez sur Enregistrer et générer pour les mettre à jour.",
+      "dynamicAssessStaleSubReadonly": "Les questions ne correspondent plus à la compétence ou à l’objectif de difficulté. Demandez des modifications pour que le créateur les régénère.",
+      "dynamicAssessPendingTitle": "Les questions sont encore en cours de génération",
+      "dynamicAssessPendingSub": "Rouvrez cet ensemble de questions dans un instant pour les voir. L’enregistrement est suspendu pour ne pas écraser les nouvelles questions."
     }
   },
   "ui": {
@@ -441,7 +465,29 @@
     "sortAZ": "Trier de A à Z",
     "sortByRecent": "Passer aux plus récentes",
     "sortAZLabel": "A–Z",
-    "hasRequiredFields": "Contient des champs obligatoires"
+    "hasRequiredFields": "Contient des champs obligatoires",
+    "generateBeforeReview": "Enregistrez avec la compétence et l’objectif de difficulté pour générer les questions avant l’envoi en révision",
+    "generateBeforePublish": "Générez les questions avant la publication",
+    "difficultyEasy": "Facile",
+    "difficultyMedium": "Moyen",
+    "difficultyDifficult": "Difficile",
+    "dynamicAssessMinTitle": "Nombre minimum de questions par compétence",
+    "dynamicAssessMinNeeds": "Chaque compétence sélectionnée nécessite au moins {MIN} questions ; augmentez le total à au moins {MINIMUM}.",
+    "dynamicAssessMinOk": "Chaque compétence sélectionnée nécessite au moins {MIN} questions.",
+    "dynamicAssessMinFooter": "Total : {TOTAL} · Minimum : {MINIMUM}",
+    "dynamicAssessNeedsAdjustment": "À ajuster",
+    "generationStaleTip": "Paramètres modifiés — enregistrez d’abord pour régénérer les questions",
+    "saveAndGenerate": "Enregistrer et générer",
+    "saveAndGenerateHint": "Enregistre, puis sélectionne des questions du pool pour la compétence et l’objectif de difficulté actuels",
+    "regenerateQuestions": "Régénérer",
+    "regenerateQuestionsHint": "Choisir un nouvel ensemble aléatoire de questions pour la même compétence et le même objectif de difficulté",
+    "difficulty": "Difficulté",
+    "selectDifficulty": "Choisir la difficulté",
+    "dynamicAssessExampleShow": "Voir un exemple",
+    "dynamicAssessExampleHide": "Masquer",
+    "dynamicAssessExampleIntro": "Exemple : vous choisissez 2 compétences et demandez {N} faciles, {N} moyennes et {N} difficiles.",
+    "dynamicAssessExampleTotal": "Chaque apprenant reçoit {TOTAL} questions.",
+    "dynamicAssessExampleEach": "Au moins {MIN} questions viendront de chaque compétence."
   },
   "categoryLabels": {
     "Multiselect Multiple Choice Question": "Question à choix multiple",

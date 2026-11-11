@@ -442,6 +442,19 @@ aside.ce-tree { max-width: none; margin: 0; }
 .ce-spinner { display: block; width: 32px; height: 32px; border: 3px solid var(--sb-border); border-top-color: var(--accent); border-radius: 50%; animation: ce-spin .65s linear infinite; }
 @keyframes ce-spin { to { transform: rotate(360deg); } }
 
+/* ── Dynamic Assess stale settings banner (aligned with the 940px content card) ── */
+.ce-stale-banner { display: flex; align-items: center; gap: 14px; width: calc(100% - 56px); max-width: 940px; margin: 16px auto 0; padding: 12px 14px 12px 16px; border-radius: var(--sbx-radius-xl); border: 1px solid #f0c96b; background: #fffbeb; color: #7a4f05; box-shadow: var(--sb-shadow-card); }
+.ce-stale-banner-ic { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #fdecc8; color: var(--sb-amber); }
+.ce-stale-banner-tx { flex: 1; min-width: 0; }
+.ce-stale-banner-title { margin: 0; font-size: 14px; font-weight: 700; color: #6b4404; }
+.ce-stale-banner-sub { margin: 2px 0 0; font-size: 13px; line-height: 1.45; }
+
+/* ── Dynamic Assess generating overlay ───────────────────────── */
+.ce-generating-card { width: 100%; max-width: 380px; background: #fff; border-radius: 22px; box-shadow: var(--sb-shadow-deep); padding: 36px 40px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; animation: ce-pop .17s cubic-bezier(.2,.9,.3,1.2); }
+.ce-generating-card .ce-spinner { width: 40px; height: 40px; margin-bottom: 4px; }
+.ce-generating-title { margin: 0; font-size: 18px; font-weight: 800; color: var(--ink); }
+.ce-generating-sub { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--sb-text-muted); }
+
 /* ── Question editor (when opened inline) ────────────────────── */
 .ce-ed { width: 100%; min-width: min(640px, 100%); max-width: 940px; margin: 0 auto; position: relative; }
 // Covers the whole question editor (including the "Back to set" button)

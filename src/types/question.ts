@@ -73,7 +73,8 @@ export interface IQuestion {
   timeLimits?: { maxTime?: number; warningTime?: number };
   maxScore?: number;
   bloomsLevel?: string;
-  difficultyLevel?: 'easy' | 'medium' | 'hard';
+  /** EASY | MEDIUM | DIFFICULT (older questions may carry easy/medium/hard); the Dynamic Assess pool filters on it. */
+  difficultyLevel?: string;
   purpose?: string;
   expectedDuration?: number;
   shuffle?: boolean;

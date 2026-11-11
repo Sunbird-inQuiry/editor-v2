@@ -10,7 +10,7 @@ import { Topbar } from '../Topbar/Topbar';
 import OutlineTree from '../OutlineTree/OutlineTree';
 import LibraryDock from '../LibraryDock/LibraryDock';
 import { useUiStore } from '../../store/ui.store';
-import { notifySuccess } from '../../utils/notify';
+import { notifyError, notifySuccess } from '../../utils/notify';
 import { label } from '../../utils/labels';
 import { telemetryInteract } from '../../utils/telemetry';
 import ContextualEditor from '../ContextualEditor/ContextualEditor';
@@ -18,6 +18,14 @@ import UnsavedChangesModal from '../modals/UnsavedChangesModal';
 import MissingRequiredFieldsModal from '../modals/MissingRequiredFieldsModal';
 import { QuestionTypeSelectorModal } from '../modals/QuestionTypeSelectorModal';
 import { ConnectedConfirmDialog } from '../modals/ConfirmDialog';
+import { getContentId } from '../../utils/context';
+import { useIsDynamicAssess } from '../../hooks/useIsDynamicAssess';
+import { readHierarchy } from '../../api/hierarchy';
+import { GeneratingOverlay } from '../shared/GeneratingOverlay';
+import { StaleSettingsBanner } from '../shared/StaleSettingsBanner';
+import { isGenerationStale, needsGeneration } from '../../utils/dynamicAssessDraw';
+import { useDynamicSkillField } from '../../hooks/useDynamicSkillField';
+import { useRefreshQuestionSetBody, sessionCancelledCheck } from '../../hooks/useRefreshQuestionSetBody';
 
 interface SplitEditorShellProps {
   events: IEditorEvents;
@@ -35,10 +43,27 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
   const isDirty = useEditorStore((s) => s.isDirty);
   const editorMode = useEditorStore((s) => s.editorMode);
   const lastSaved = useEditorStore((s) => s.lastSaved);
+  const isDynamicAssess = useIsDynamicAssess();
+  const isGenerating = useEditorStore((s) => s.buttonLoaders.refreshBody);
+  const generationPending = useEditorStore((s) => s.buttonLoaders.refreshPending);
+  const skillField = useDynamicSkillField();
+  // Matches when Topbar shows the Generate button to a reviewer.
+  const canReviewerRegenerate = useEditorStore((s) => (s.editorMode === 'orgreview' || s.editorMode === 'sourcingreview') && !!s.editorConfig?.context?.enableReviewEdit);
+  // Saved settings only: unsaved edits are already signalled by Save turning into "Save & Generate".
+  const savedSettingsStale = useTreeStore((s) => isDynamicAssess && isGenerationStale(s.treeData[0], {}, 'Dynamic QuestionSet', skillField));
 
   const { save, isSaving } = useSaveHierarchy();
+  const { refresh: regenerate } = useRefreshQuestionSetBody();
   const validateAndSave = useValidateAndSave();
   const { runAction } = useToolbarActions(validateAndSave);
+
+  // A save while questions generate, or after a timed-out generation that may still be writing, would put the old questions back over the job's result.
+  const generationBlocksSave = useCallback(() => {
+    const { refreshBody, refreshPending } = useEditorStore.getState().buttonLoaders;
+    return isDynamicAssess && (refreshBody || refreshPending);
+  }, [isDynamicAssess]);
+  const notifyGenerationBlocksSave = () =>
+    notifyError(label('messages.error.dynamicAssessPendingSave', 'Questions are still being generated. Reopen this question set before saving.'));
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -86,13 +111,30 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
         case 'preview': {
           const { showPreview, setShowPreview } = useEditorStore.getState();
           if (showPreview) { setShowPreview(false); break; }
-          // Old editor saves before previewing in edit mode.
+          // Old editor saves before previewing in edit mode; not while a Dynamic generation is running or may be mid-write.
+          if (editorMode === 'edit' && generationBlocksSave()) { notifyGenerationBlocksSave(); break; }
           if (editorMode === 'edit' && (await save()) === false) break;
           setShowPreview(true);
           break;
         }
         case 'saveContent': {
-          if (await validateAndSave()) notifySuccess(label('messages.success.001', 'Question set saved as draft'));
+          // Dynamic sets generate as part of Save, but only when Skill/Target need it; any other edit is a plain save.
+          const { treeData, treeCache } = useTreeStore.getState();
+          if (generationBlocksSave()) { notifyGenerationBlocksSave(); break; }
+          if (isDynamicAssess && needsGeneration(treeData[0], treeCache, 'Dynamic QuestionSet', skillField)) {
+            await regenerate({ saveIfBlocked: true });
+            break;
+          }
+          // Captured before the save, so a reload that lands after this editor closed can't replace another set's tree.
+          const isCancelled = sessionCancelledCheck();
+          if (await validateAndSave()) {
+            notifySuccess(label('messages.success.001', 'Question set saved as draft'));
+            // Reload so a Dynamic set's banner reflects the just-saved settings instead of the ones it was opened with.
+            const contentId = getContentId(useEditorStore.getState().editorConfig?.context);
+            if (isDynamicAssess && contentId && !isCancelled()) {
+              readHierarchy(contentId).then(({ rootNode }) => { if (rootNode && !isCancelled()) useTreeStore.getState().setTreeData([rootNode]); }).catch(() => {});
+            }
+          }
           break;
         }
         case 'sendForReview':
@@ -109,7 +151,7 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
           break;
       }
     },
-    [events, isDirty, save, runAction, editorMode, validateAndSave],
+    [events, isDirty, save, runAction, editorMode, validateAndSave, isDynamicAssess, regenerate, skillField, generationBlocksSave],
   );
 
   const handleDiscardAndProceed = useCallback(() => {
@@ -118,10 +160,17 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
   }, [pendingBack, events]);
 
   const handleSaveAndProceed = useCallback(async () => {
+    // Stay in the editor rather than save over the job's write; Discard still leaves.
+    if (generationBlocksSave()) {
+      notifyGenerationBlocksSave();
+      setShowUnsavedPrompt(false);
+      setPendingBack(false);
+      return;
+    }
     await save();
     setShowUnsavedPrompt(false);
     if (pendingBack) { setPendingBack(false); events.onToolbarEvent?.({ action: 'back' }); }
-  }, [save, pendingBack, events]);
+  }, [save, pendingBack, events, generationBlocksSave]);
 
   const handleCancelUnsaved = useCallback(() => {
     setShowUnsavedPrompt(false);
@@ -176,6 +225,7 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
 
         {/* Center — Contextual editor */}
         <main className="ce-main">
+          <StaleSettingsBanner open={(savedSettingsStale || generationPending) && !isGenerating} pending={generationPending} canRegenerate={editorMode === 'edit' || canReviewerRegenerate} />
           <ContextualEditor
             hasContent={hasContent}
             onToolbarEvent={handleToolbarEvent}
@@ -183,8 +233,10 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
         </main>
 
         {/* Right — Question library */}
-        {/* Locked while a question is being edited, like the left hierarchy. */}
-        {editorMode === 'edit' && (
+        {/* Locked while a question is being edited, like the left hierarchy.
+            Hidden for Dynamic Assess sets — their children are auto-selected
+            from a pool via "Generate Questions", not manually curated. */}
+        {editorMode === 'edit' && !isDynamicAssess && (
           <>
             <aside
               className={`ce-lib${libraryCollapsed || questionEditorOpen ? ' collapsed' : ''}`}
@@ -226,6 +278,7 @@ export function SplitEditorShell({ events }: SplitEditorShellProps) {
       )}
       <QuestionTypeSelectorModal />
       <ConnectedConfirmDialog />
+      <GeneratingOverlay open={isDynamicAssess && isGenerating} />
     </div>
     </EditorRootContext.Provider>
   );

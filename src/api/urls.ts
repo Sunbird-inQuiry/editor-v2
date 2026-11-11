@@ -19,6 +19,7 @@ export const URLS = {
     reject: 'questionset/v2/reject',
     publish: 'questionset/v2/publish',
     systemUpdate: 'questionset/v5/system/update',
+    refreshBody: 'questionset/v5/refresh/body',
     commentRead: 'questionset/v2/comment/read',
     commentUpdate: 'questionset/v2/comment/update',
     /** Extra read fields absent from the hierarchy response. */

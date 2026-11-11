@@ -252,10 +252,24 @@
       "alreadyInSet": "This question is already in the set",
       "maxDepth": "Cannot add here — maximum depth reached",
       "attachFailed": "Could not add this question — please try again",
+      "saveBusy": "Another save is still running — please try again in a moment",
       "copyFailed": "Could not copy this question — please try again",
       "copyPublishFailed": "Copied, but could not be published — it stays a Draft.",
       "republishFailed": "Question saved, but could not be published — this edit stays hidden until it's republished.",
-      "publishFailed": "Question created, but could not be published — it stays a Draft and won't show up in the Library until published."
+      "publishFailed": "Question created, but could not be published — it stays a Draft and won't show up in the Library until published.",
+      "dynamicAssessInputs": "Set Skill and Difficulty Target before generating questions.",
+      "dynamicAssessPoolCheck": "Could not verify question availability. Please try again.",
+      "dynamicAssessPool": "Not enough questions available for the selected skill(s)",
+      "dynamicAssessRefresh": "Failed to generate questions. Please try again.",
+      "dynamicAssessInit": "Failed to generate questions for this question set.",
+      "dynamicAssessShortfall": "{LEVEL}: requested {REQUESTED} needs {NEEDED}, available {AVAILABLE}",
+      "dynamicAssessPending": "Questions haven't appeared yet. Generation may still be running, or it may have failed (for example, too few questions for a skill). Reopen this question set in a moment, or check the pool and try again.",
+      "difficultyTargetEmpty": "{FIELD} must have at least one question",
+      "dynamicAssessSkillPool": "Each skill needs at least {NEEDED} Live questions. Too few for: {SKILLS}",
+      "dynamicAssessTooManySkills": "Selected skills: {COUNT}. The Difficulty Target must add up to at least {NEEDED} (each skill gets at least {MIN} questions). Raise the target or remove a skill.",
+      "dynamicAssessSkillLevels": "Not enough questions at the selected difficulty levels for: {SKILLS}. Each skill needs at least {MIN} questions it can supply at those levels.",
+      "dynamicAssessSavedNotGenerated": "Saved, but the questions were not regenerated: {REASON}",
+      "dynamicAssessPendingSave": "Questions are still being generated. Reopen this question set before saving."
     },
     "success": {
       "001": "Content is saved",
@@ -272,7 +286,17 @@
       "040": "Content sent back for corrections",
       "043": "Comment saved successfully",
       "questionAdded": "\"{NAME}\" added",
-      "questionCopied": "\"{NAME}\" copied"
+      "questionCopied": "\"{NAME}\" copied",
+      "dynamicAssessRefresh": "Questions generated"
+    },
+    "info": {
+      "dynamicAssessGeneratingTitle": "Generating questions",
+      "dynamicAssessGeneratingSub": "Picking questions from the pool for the selected skills and difficulty. This usually takes a few seconds.",
+      "dynamicAssessStaleTitle": "Settings changed since the questions were generated",
+      "dynamicAssessStaleSub": "The questions don't match the current Skill and Difficulty Target. Click Save & Generate to update them.",
+      "dynamicAssessStaleSubReadonly": "The questions no longer match the Skill or Difficulty Target. Request changes so the creator can regenerate them.",
+      "dynamicAssessPendingTitle": "Questions are still being generated",
+      "dynamicAssessPendingSub": "Reopen this question set in a moment to see them. Saving is paused so the new questions aren't overwritten."
     }
   },
   "categoryLabels": {
@@ -459,6 +483,28 @@
     "sortAZ": "Sort A–Z",
     "sortByRecent": "Switch to most recent first",
     "sortAZLabel": "A–Z",
-    "hasRequiredFields": "Has required fields"
+    "hasRequiredFields": "Has required fields",
+    "generateBeforeReview": "Save with Skill and Difficulty Target to generate questions before sending for review",
+    "generateBeforePublish": "Generate questions before publishing",
+    "difficultyEasy": "Easy",
+    "difficultyMedium": "Medium",
+    "difficultyDifficult": "Difficult",
+    "dynamicAssessMinTitle": "Minimum questions per skill",
+    "dynamicAssessMinNeeds": "Each selected skill needs at least {MIN} questions; increase the total to at least {MINIMUM}.",
+    "dynamicAssessMinOk": "Each selected skill needs at least {MIN} questions.",
+    "dynamicAssessMinFooter": "Total: {TOTAL} · Minimum: {MINIMUM}",
+    "dynamicAssessNeedsAdjustment": "Needs adjustment",
+    "generationStaleTip": "Settings changed — save to generate the questions again first",
+    "saveAndGenerate": "Save & Generate",
+    "saveAndGenerateHint": "Saves, then picks questions from the pool for the current Skill and Difficulty Target",
+    "regenerateQuestions": "Regenerate",
+    "regenerateQuestionsHint": "Pick a new random set of questions for the same Skill and Difficulty Target",
+    "difficulty": "Difficulty",
+    "selectDifficulty": "Select difficulty",
+    "dynamicAssessExampleShow": "See an example",
+    "dynamicAssessExampleHide": "Hide",
+    "dynamicAssessExampleIntro": "Example: you pick 2 skills and ask for {N} Easy, {N} Medium and {N} Difficult.",
+    "dynamicAssessExampleTotal": "Each learner gets {TOTAL} questions.",
+    "dynamicAssessExampleEach": "Minimum {MIN} questions will come from each skill."
   }
 }

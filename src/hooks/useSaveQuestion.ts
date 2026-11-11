@@ -24,7 +24,7 @@
 import { useCallback } from 'react';
 import { notifySuccess, notifyError, apiErrorMessage } from '../utils/notify';
 import { label } from '../utils/labels';
-import { useQuestionStore } from '../store/question.store';
+import { useQuestionStore, normalizeDifficultyLevel } from '../store/question.store';
 import { useEditorStore } from '../store/editor.store';
 import { useTreeStore } from '../store/tree.store';
 import { createQuestion, updateQuestion, readQuestion, publishQuestion } from '../api/question';
@@ -359,6 +359,12 @@ function resolveCategoryCodesForFramework(orgFrameworkId: string): string[] {
   return [...codes];
 }
 
+/** The difficulty the question last saved with: this session's save (merged into treeCache) wins over the one it was loaded with. */
+function savedDifficultyLevel(nodeId: string, loaded: unknown): string {
+  const cached = useTreeStore.getState().treeCache[nodeId];
+  return normalizeDifficultyLevel(cached && 'difficultyLevel' in cached ? cached.difficultyLevel : loaded);
+}
+
 // ---------------------------------------------------------------------------
 // buildLiveQuestionMeta — the same metadata object useSaveQuestion sends to
 // the backend, built purely from live in-memory state (no API call). Used
@@ -370,7 +376,7 @@ export function buildLiveQuestionMeta(): { questionName: string; questionMeta: R
   const {
     activeQuestion, questionType, questionBody, options, matchPairs, sequence,
     hintText, solutionText, solutionType, solutionAsset, solutionUUID,
-    answerText, sentence, maxScore,
+    answerText, sentence, maxScore, difficultyLevel,
     isPartialScore, evalUnordered, layout, contentLang,
   } = useQuestionStore.getState();
   const { selectedNodeId, treeData } = useTreeStore.getState();
@@ -607,8 +613,8 @@ export function buildLiveQuestionMeta(): { questionName: string; questionMeta: R
       channel,
       framework,
       ...taxonomy,
-      // difficultyLevel/bloomsLevel are NOT valid Question schema
-      // properties — the old editor never sends them in nodesModified.
+      // Sent when picked (the schema doesn't list it; schema_restrict_api is false), and as null to remove one the author cleared, so the question leaves that pool bucket.
+      ...(difficultyLevel ? { difficultyLevel } : savedDifficultyLevel(selectedNodeId, activeQuestion?.difficultyLevel) ? { difficultyLevel: null } : {}),
     };
 
     applyContentI18n(questionMeta, {

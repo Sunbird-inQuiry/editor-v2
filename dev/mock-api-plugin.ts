@@ -46,6 +46,10 @@ export function mockApiPlugin(): Plugin {
         if (url.includes('/questionset/v2/hierarchy/update') && method === 'PATCH')
           return ok();
 
+        // Generate Questions: no real pool in the offline mock, just acknowledge so the UI round-trip can be exercised.
+        if (url.includes('/questionset/v5/refresh/body/') && method === 'POST')
+          return ok();
+
         if (url.includes('/questionset/v2/hierarchy/'))
           return json(MOCK_HIERARCHY);
 

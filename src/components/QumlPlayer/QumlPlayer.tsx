@@ -19,9 +19,12 @@ import type { INode } from '../../types/editor';
 import styles from './QumlPlayer.module.scss';
 import { useLabels } from '../../hooks/useLabels';
 import { detectNodeKind } from '../../utils/nodeKind';
+import { isDynamicAssessQuestionSet, resolvePrimaryCategory } from '../../utils/context';
 
 const PLAYER_TAG = 'sunbird-quml-player';
 const DEFAULT_PLAYER_SCRIPT = '/assets/sunbird-quml-player.js';
+/** knowlg-service rejects question/list requests with more identifiers than this (question.list.limit). */
+const QUESTION_LIST_LIMIT = 20;
 
 interface QumlPlayerProps {
   /** Identifier of the question set being previewed. */
@@ -140,17 +143,26 @@ const QumlPlayer: React.FC<QumlPlayerProps> = ({ questionSetId, singleQuestionId
           if (singleQuestionId) {
             metadata = nodeToHierarchy(treeData[0], treeCache);
           } else {
-            const questionIds = collectQuestionIds(treeData[0].children ?? []);
+            // A Dynamic QuestionSet previews its whole pool, so the creator and reviewer see every question; learners get their own draw in the portal.
+            const root = treeData[0];
+            const questionIds = collectQuestionIds(root.children ?? []);
             const hydrated = new Map<string, Record<string, unknown>>();
+            const isDynamic = isDynamicAssessQuestionSet(resolvePrimaryCategory(editorConfig?.config?.primaryCategory as string | undefined, treeData[0]));
             if (questionIds.length) {
               try {
-                for (const q of await listQuestions(questionIds)) {
+                // question/list accepts at most 20 ids per request, so a Dynamic pool larger than that is fetched in batches; other sets keep the single request.
+                const batches = isDynamic
+                  ? Array.from({ length: Math.ceil(questionIds.length / QUESTION_LIST_LIMIT) }, (_, i) => questionIds.slice(i * QUESTION_LIST_LIMIT, (i + 1) * QUESTION_LIST_LIMIT))
+                  : [questionIds];
+                for (const q of (await Promise.all(batches.map((ids) => listQuestions(ids)))).flat()) {
                   const id = q.identifier as string | undefined;
                   if (id) hydrated.set(id, q);
                 }
               } catch { /* fall back to whatever's already in the tree */ }
             }
-            metadata = nodeToHierarchy(treeData[0], treeCache, hydrated);
+            metadata = nodeToHierarchy(root, treeCache, hydrated);
+            // The player sub-selects maxQuestions, so a Dynamic preview raises it to the pool size to show every question; saved metadata is unchanged.
+            if (isDynamic && metadata.maxQuestions) metadata = { ...metadata, maxQuestions: questionIds.length };
           }
         }
 
